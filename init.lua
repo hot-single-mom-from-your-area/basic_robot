@@ -38,8 +38,9 @@ function getSandboxEnv (robot_name)
 		left_down = 7, right_down = 8, forward_down = 9, backward_down = 10,
 		left_up = 11, right_up = 12, forward_up = 13,  backward_up = 14
 		}
-	
-	local player_name = string.sub(robot_name,1,-2)
+
+	local player_name = basic_robot.data[robot_name].owner
+
 	if not basic_robot.data[player_name] then basic_robot.data[player_name] = {} end
 	-- all robots by player share same rom now
 	if not basic_robot.data[player_name].rom then basic_robot.data[player_name].rom = {} end -- create rom if not yet existing
