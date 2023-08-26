@@ -938,32 +938,62 @@ local robot_spawner_update_form = function(pos, mode)
 
 	if mode ~= 1 then -- when placed
 		form =
-			"size[9.5,8]" .. -- width, height
-			"style_type[textarea;font_size=12;font=mono;bgcolor=#000000;textcolor=#00FF00;border=false]" ..
-			"style_type[button;font_size=14;font=mono;bgcolor=#000000;border=false]" ..
-			"style_type[button_exit;font_size=14;font=mono;bgcolor=#000000;border=false]" ..
-			"textarea[1.25,-0.25;8.8,10.25;code;;" .. code .. "]" ..
-			"button[-0.15,7.5;1.25,1;EDIT;EDIT]" ..
-			"button[-0.15,-0.25;1.25,1;OK;" .. minetest.colorize("yellow", "SAVE") .. "]" ..
-			"button_exit[-0.15, 0.75;1.25,1;spawn;" .. minetest.colorize("green", "START") .. "]" ..
-			"button[-0.15, 1.75;1.25,1;despawn;" .. minetest.colorize("red", "STOP") .. "]" ..
-			"field[0.15,3.;1.2,1;id;id;" .. id .. "]" ..
-			"button[-0.15, 3.6;1.25,1;inventory;STORAGE]" ..
-			"button[-0.15, 4.6;1.25,1;library;LIBRARY]" ..
-			"button[-0.15, 5.6;1.25,1;help;HELP]"
+			"size[9.95,11.175]" ..
+			"no_prepend[]" ..
+			"real_coordinates[true]" ..
+			"bgcolor[black;neither]" ..
+			"background9[0,0;1,1;robot_ui_background.png;true;1,1,2,2]" ..
+			"style_type[textarea;font_size=12;font=mono;textcolor=#039]" ..
+			"style_type[button;bgcolor=silver]" ..
+			"style[OK,spawn,despawn;font=bold]" ..
+			"style[spawn;bgcolor=green]" ..
+			"style[despawn;bgcolor=silver]" ..
+			"tooltip[OK;Save changes to the code;#0393;#fff]" ..
+			"tooltip[spawn;Run previously saved code;#0393;#fff]" ..
+			"tooltip[despawn;Interrupt execution;#0393;#fff]" ..
+			"tooltip[id;Robot ID;#0393;#fff]" ..
+			"tooltip[help;In-game documentation;#0393;#fff]" ..
+			"tooltip[EDIT;Per-line editor for touch screens;#0393;#fff]" ..
+			"tabheader[0,0;robot_tabs;Code,Storage,Library;1;true;true]" ..
+			"textarea[1.7,0.1;8.15,10.975;code;;" .. code .. "]" ..
+			"container[0.1,0.1]" ..
+			"button[0,0;1.5,0.75;OK;Save]" ..
+			"button_exit[0,1;1.5,0.75;spawn;Start]" ..
+			"button[0,2;1.5,0.75;despawn;Stop]" ..
+			"field[0,3.25;1.5,0.75;id;ID:;" .. id .. "]" ..
+			"button[0,9.225;1.5,0.75;help;Help]" ..
+			"button[0,10.225;1.5,0.75;EDIT;Edit]" ..
+			"container_end[]"
+		meta:set_string("formspec", form)
 	else            -- when robot clicked
 		form =
-			"size[9.5,8]" .. -- width, height
-			"textarea[1.25,-0.25;8.75,10.25;code;;" .. code .. "]" ..
-			"button_exit[-0.15,-0.25;1.25,1;OK;SAVE]" ..
-			"button[-0.15, 1.75;1.25,1;despawn;STOP]" ..
-			"button[-0.15, 3.6;1.25,1;inventory;storage]" ..
-			"button[-0.15, 4.6;1.25,1;library;library]" ..
-			"button[-0.15, 5.6;1.25,1;help;help]"
+			"size[9.95,11.175]" ..
+			"no_prepend[]" ..
+			"real_coordinates[true]" ..
+			"bgcolor[black;neither]" ..
+			"background9[0,0;1,1;robot_ui_background.png;true;1,1,2,2]" ..
+			"style_type[textarea;font_size=12;font=mono;textcolor=#039]" ..
+			"style_type[button;bgcolor=silver]" ..
+			"style[OK,spawn,despawn;font=bold]" ..
+			"style[spawn;bgcolor=yellow]" ..
+			"style[despawn;bgcolor=red]" ..
+			"tooltip[OK;Save changes to the code;#0393;#fff]" ..
+			"tooltip[spawn;Run previously saved code;#0393;#fff]" ..
+			"tooltip[despawn;Interrupt execution;#0393;#fff]" ..
+			"tooltip[help;In-game documentation;#0393;#fff]" ..
+			"tooltip[EDIT;Per-line editor for touch screens;#0393;#fff]" ..
+			"tabheader[0,0;robot_tabs;Code,Storage,Library;1;true;true]" ..
+			"textarea[1.7,0.1;8.15,10.975;code;;" .. code .. "]" ..
+			"container[0.1,0.1]" ..
+			"button[0,0;1.5,0.75;OK;Save]" ..
+			"button_exit[0,1;1.5,0.75;spawn;Restart]" ..
+			"button[0,2;1.5,0.75;despawn;Stop]" ..
+			"button[0,9.225;1.5,0.75;help;Help]" ..
+			"button[0,10.225;1.5,0.75;EDIT;Edit]" ..
+			"container_end[]"
 	end
 
-	if mode == 1 then return form end
-	meta:set_string("formspec", form)
+	return form
 end
 
 basic_robot.editor = {}
@@ -1444,6 +1474,11 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 		return
 	end
 
+	if fields.robot_tabs and fields.robot_tabs == "1" then
+		local form = robot_spawner_update_form(pos)
+		minetest.show_formspec(sender:get_player_name(), "robot_spawner_" .. minetest.pos_to_string(pos), form)
+	end
+
 	if fields.help then ----- INGAME HELP ------
 		robogui["robot_help"].show(player_name)
 		return
@@ -1472,18 +1507,24 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 		return
 	end
 
-	if fields.inventory then
+	if fields.inventory or (fields.robot_tabs and fields.robot_tabs == "2") then
 		local list_name = "nodemeta:" .. pos.x .. ',' .. pos.y .. ',' .. pos.z
 		local form      =
-			"size[8,8]" .. -- width, height
-			"list[" .. list_name .. ";main;0.,0;8,4;]" ..
-			"list[current_player;main;0,4.25;8,4;]" ..
-			"listring[" .. list_name .. ";main]" ..
-			"listring[current_player;main]"
-		minetest.show_formspec(sender:get_player_name(), "robot_inventory", form)
+			"size[9.95,11.175]" ..
+			"no_prepend[]" ..
+			"real_coordinates[true]" ..
+			"bgcolor[black;neither]" ..
+			"background9[0,0;1,1;robot_ui_background.png;true;1,1,2,2]" ..
+			"style_type[list;spacing=0.2;size=1,1]" ..
+			"listcolors[#0396;#0393;#039;#0393;#fff]" ..
+			"tabheader[0,0;robot_tabs;Code,Storage,Library;2;true;true]" ..
+			"list[" .. list_name .. ";main;0.3,0.3;8,4;]" ..
+			"list[current_player;main;0.3,6.3;8,4;]" ..
+			"listring[]"
+			minetest.show_formspec(sender:get_player_name(), "robot_spawner_" .. minetest.pos_to_string(pos), form)
 	end
 
-	if fields.library then
+	if fields.library or (fields.robot_tabs and fields.robot_tabs == "3") then
 		local list_name = "nodemeta:" .. pos.x .. ',' .. pos.y .. ',' .. pos.z
 		local list = ""
 		local meta = minetest.get_meta(pos)
@@ -1504,17 +1545,17 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 		local libform = ""
 
 		if libpos.x and libpos.y and libpos.z and not minetest.is_protected(libpos, owner) then
-			libform = "list[" .. list_name .. ";library;4.25,0;4,4;]"
+			libform = "list[" .. list_name .. ";library;5.0875,0.3;4,4]";
 		else
-			libform = "label[4.25,0;Library position is protected]"
+			libform = "label[5.0875,0.3;Library position is protected]";
 		end
 
 		local libnodename = minetest.get_node(libpos).name
 		if libnodename ~= "basic_robot:spawner" then
 			if libnodename == "ignore" then
-				libform = "label[4.25,0;library target area is not loaded]"
+				libform = "label[5.0875,0.3;library target area is not loaded]"
 			else
-				libform = "label[4.25,0;there is no spawner at library coordinates]"
+				libform = "label[5.0875,0.3;there is no spawner at library coordinates]"
 			end
 		else
 			local inv = minetest.get_meta(libpos):get_inventory()
@@ -1529,17 +1570,30 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 					text = ""
 				end
 				text = i .. ". " .. minetest.formspec_escape(text)
-				list = list .. text .. ","
+				list = list .. text .. (i == 16 and "" or ",")
 			end
 		end
 
 		--for word in string.gmatch(text, "(.-)\r?\n+") do list = list .. word .. ", " end -- matches lines
-		local form = "size [8,8] textlist[0,0;4.,3.;books;" .. list .. "]" ..
-			"field[0.25,3.5;3.25,1;libpos;Position of spawner used as library;" .. libposstring .. "]" ..
-			"button_exit[3.25,3.2;1.,1;OK;SAVE]" ..
+		local form =
+			"size[9.95,11.175]" ..
+			"no_prepend[]" ..
+			"real_coordinates[true]" ..
+			"bgcolor[black;neither]" ..
+			"background9[0,0;1,1;robot_ui_background.png;true;1,1,2,2]" ..
+			"style_type[list;spacing=0.2;size=1,1]" ..
+			"style_type[button;bgcolor=silver]" ..
+			"listcolors[#0396;#0393;#039;#0393;#fff]" ..
+			"tooltip[libpos;Position of spawner used as library;#0393;#fff]" ..
+			"tooltip[OK;Save and close;#0393;#fff]" ..
+			"tabheader[0,0;robot_tabs;Code,Storage,Library;3;true;true]" ..
+			"textlist[0.275,0.275;4.65,4.65;books;" .. list .. "]" ..
 			libform ..
-			"list[current_player;main;0,4.25;8,4;]"
-		minetest.show_formspec(sender:get_player_name(), "robot_library_" .. minetest.pos_to_string(pos), form)
+			"field[0.275,5.425;3.425,0.7;libpos;Library position:;" .. libposstring .. "]" ..
+			"button_exit[3.875,5.425;1.05,0.7;OK;SAVE]" ..
+			"list[current_player;main;0.3,6.3;8,4]" ..
+			"listring[]"
+		minetest.show_formspec(sender:get_player_name(), "robot_spawner_" .. minetest.pos_to_string(pos), form)
 	end
 end
 
@@ -1548,6 +1602,16 @@ end
 
 minetest.register_on_player_receive_fields(
 	function(player, formname, fields)
+		local spawner_formname = "robot_spawner_";
+		if string.find(formname, spawner_formname) then
+			local pos = minetest.string_to_pos(string.sub(formname, string.len(spawner_formname)+1))
+			local privs = minetest.get_player_privs(player:get_player_name());
+			local is_protected = minetest.is_protected(pos, player:get_player_name());
+			if is_protected and not privs.privs then return 0 end
+			on_receive_robot_form(pos, formname, fields, player)
+			return
+		end
+
 		local robot_formname = "robot_worker_"
 		if string.find(formname, robot_formname) then
 			local robot_name = string.sub(formname, string.len(robot_formname) + 1)
