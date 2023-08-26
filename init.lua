@@ -965,7 +965,7 @@ local robot_spawner_update_form = function(pos, mode)
 			"button[0,10.225;1.5,0.75;EDIT;Edit]" ..
 			"container_end[]"
 		meta:set_string("formspec", form)
-	else            -- when robot clicked
+	else -- when robot clicked
 		form =
 			"size[9.95,11.175]" ..
 			"no_prepend[]" ..
@@ -1036,7 +1036,7 @@ local function init_robot(obj, resetSandbox)
 	local robot_name = self.name
 	basic_robot.data[robot_name].obj = obj       --register object
 	--init settings
-	basic_robot.data.listening[robot_name] = nil  -- dont listen at beginning
+	basic_robot.data.listening[robot_name] = nil -- dont listen at beginning
 	basic_robot.data[robot_name].quiet_mode = false -- can chat globally
 
 	-- check if admin robot
@@ -1189,7 +1189,7 @@ local spawn_robot = function(pos, node, ttl)
 	local t1 = minetest.get_gametime()
 	local T = meta:get_int("T") -- temperature
 
-	if t0 > t1 - 2 then       -- activated before natural time
+	if t0 > t1 - 2 then      -- activated before natural time
 		T = T + 1
 	else
 		if T > 0 then
@@ -1200,7 +1200,7 @@ local spawn_robot = function(pos, node, ttl)
 	meta:set_int("T", T)
 	meta:set_int("t", t1) -- update last activation time
 
-	if T > 2 then       -- overheat
+	if T > 2 then      -- overheat
 		minetest.sound_play("default_cool_lava", { pos = pos, max_hear_distance = 16, gain = 0.25 })
 		meta:set_string("infotext", "overheat: temperature " .. T)
 		return
@@ -1213,7 +1213,7 @@ local spawn_robot = function(pos, node, ttl)
 	local robot_name = owner .. id
 
 
-	if id <= 0 then         -- just compile code and run it, no robot entity spawn
+	if id <= 0 then        -- just compile code and run it, no robot entity spawn
 		local codechange = false -- was code changed by editing?
 		local poschange = false -- are we running from different spawner?
 
@@ -1371,7 +1371,7 @@ local despawn_robot = function(pos)
 	local t1 = minetest.get_gametime()
 	local T = meta:get_int("T") -- temperature
 
-	if t0 > t1 - 2 then       -- activated before natural time
+	if t0 > t1 - 2 then      -- activated before natural time
 		T = T + 1
 	else
 		if T > 0 then
@@ -1382,7 +1382,7 @@ local despawn_robot = function(pos)
 	meta:set_int("T", T)
 	meta:set_int("t", t1) -- update last activation time
 
-	if T > 2 then       -- overheat
+	if T > 2 then      -- overheat
 		minetest.sound_play("default_cool_lava", { pos = pos, max_hear_distance = 16, gain = 0.25 })
 		meta:set_string("infotext", "overheat: temperature " .. T)
 		return
@@ -1521,7 +1521,7 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 			"list[" .. list_name .. ";main;0.3,0.3;8,4;]" ..
 			"list[current_player;main;0.3,6.3;8,4;]" ..
 			"listring[]"
-			minetest.show_formspec(sender:get_player_name(), "robot_spawner_" .. minetest.pos_to_string(pos), form)
+		minetest.show_formspec(sender:get_player_name(), "robot_spawner_" .. minetest.pos_to_string(pos), form)
 	end
 
 	if fields.library or (fields.robot_tabs and fields.robot_tabs == "3") then
@@ -1547,15 +1547,15 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 		if libpos.x and libpos.y and libpos.z and not minetest.is_protected(libpos, owner) then
 			libform = "list[" .. list_name .. ";library;5.0875,0.3;4,4]";
 		else
-			libform = "label[5.0875,0.3;Library position is protected]";
+			libform = "label[5.0875,0.5;Library position\nis protected]";
 		end
 
 		local libnodename = minetest.get_node(libpos).name
 		if libnodename ~= "basic_robot:spawner" then
 			if libnodename == "ignore" then
-				libform = "label[5.0875,0.3;library target area is not loaded]"
+				libform = "label[5.0875,0.5;Library position\nis not loaded]"
 			else
-				libform = "label[5.0875,0.3;there is no spawner at library coordinates]"
+				libform = "label[5.0875,0.5;There is no spawner\nat library coordinates]"
 			end
 		else
 			local inv = minetest.get_meta(libpos):get_inventory()
@@ -1604,7 +1604,55 @@ minetest.register_on_player_receive_fields(
 	function(player, formname, fields)
 		local spawner_formname = "robot_spawner_";
 		if string.find(formname, spawner_formname) then
-			local pos = minetest.string_to_pos(string.sub(formname, string.len(spawner_formname)+1))
+			local pos = minetest.string_to_pos(string.sub(formname, string.len(spawner_formname) + 1))
+
+			if fields.books then
+				if string.sub(fields.books, 1, 3) == "DCL" then
+					local sel = tonumber(string.sub(fields.books, 5)) or 1
+					local meta = minetest.get_meta(pos)
+					local libposstring = meta:get_string("libpos")
+					local words = {}
+					for word in string.gmatch(libposstring, "%S+") do words[#words + 1] = word end
+					local libpos = {
+						x = tonumber(words[1] or pos.x),
+						y = tonumber(words[2] or pos.y),
+						z = tonumber(words[3] or pos.z)
+					}
+					local inv = minetest.get_meta(libpos):get_inventory()
+					local itemstack = inv:get_stack("library", sel)
+					if itemstack then
+						local title, text = basic_robot.commands.read_book(itemstack)
+						title = title or ""
+						text = text or ""
+						form =
+							"size[9.95,11.175]" ..
+							"no_prepend[]" ..
+							"real_coordinates[true]" ..
+							"bgcolor[black;neither]" ..
+							"background9[0,0;1,1;droid_ui_button.png;true;1,1,2,2]" ..
+							"style_type[textarea;font_size=12;font=mono;textcolor=#039]" ..
+							"style_type[button;bgcolor=silver]" ..
+							"style[OK;font=bold;bgcolor=green]" ..
+							"tooltip[OK;Save changes to the book;#0393;#fff]" ..
+							"tooltip[LOAD;Replace robot code with content of the book;#0393;#fff]" ..
+							"field[0.1,0.5;5,0.75;title;Book title:;" .. minetest.formspec_escape(title) .. "]" ..
+							"button_exit[5.2,0.5;1.25,0.75;OK;Save]" ..
+							"button_exit[6.5,0.5;3.325,0.75;LOAD;Replace robot code]" ..
+							"textarea[0.1,1.8;9.755,9.3;book;Book content:;" .. minetest.formspec_escape(text) .. "]"
+						minetest.show_formspec(player:get_player_name(),
+							"robot_book_" .. sel .. ":" .. minetest.pos_to_string(libpos), form)
+					end
+				end
+				return
+			end
+
+			if fields.OK and fields.libpos then
+				local sender = player:get_player_name()
+				local meta = minetest.get_meta(pos)
+				meta:set_string("libpos", fields.libpos)
+				return
+			end
+
 			local privs = minetest.get_player_privs(player:get_player_name());
 			local is_protected = minetest.is_protected(pos, player:get_player_name());
 			if is_protected and not privs.privs then return 0 end
@@ -1692,49 +1740,6 @@ minetest.register_on_player_receive_fields(
 					commands.dig(robot_name, 5)
 				end)
 			end
-			return
-		end
-
-		local robot_formname = "robot_library_"
-		if string.find(formname, robot_formname) then
-			local spos = minetest.string_to_pos(string.sub(formname, string.len(robot_formname) + 1))
-
-			if fields.books then
-				if string.sub(fields.books, 1, 3) == "DCL" then
-					local sel = tonumber(string.sub(fields.books, 5)) or 1
-					local meta = minetest.get_meta(spos)
-					local libposstring = meta:get_string("libpos")
-					local words = {}
-					for word in string.gmatch(libposstring, "%S+") do words[#words + 1] = word end
-					local libpos = {
-						x = tonumber(words[1] or spos.x),
-						y = tonumber(words[2] or spos.y),
-						z = tonumber(words[3] or spos.z)
-					}
-					local inv = minetest.get_meta(libpos):get_inventory()
-					local itemstack = inv:get_stack("library", sel)
-					if itemstack then
-						local title, text = basic_robot.commands.read_book(itemstack)
-						title = title or ""
-						text = text or ""
-						local dtitle = minetest.formspec_escape(title)
-						local form = "size [8,8] textarea[0.,0.15;8.75,8.35;book; TITLE : " ..
-							minetest.formspec_escape(title) .. ";" ..
-							minetest.formspec_escape(text) .. "] button_exit[-0.25,7.5;1.25,1;OK;SAVE] " ..
-							"button_exit[0.9,7.5;3,1;LOAD;USE AS PROGRAM] field[4,8;4.5,0.5;title;title;" .. dtitle ..
-							"]"
-						minetest.show_formspec(player:get_player_name(),
-							"robot_book_" .. sel .. ":" .. minetest.pos_to_string(libpos), form)
-					end
-				end
-			end
-
-			if fields.OK and fields.libpos then
-				local sender = player:get_player_name() --minetest.get_player_by_name(name)
-				local meta = minetest.get_meta(spos)
-				meta:set_string("libpos", fields.libpos)
-			end
-
 			return
 		end
 
@@ -2036,10 +2041,10 @@ minetest.register_craftitem("basic_robot:control", {
 		local owner = user:get_player_name()
 
 		local script = itemstack:get_metadata()
-		if script == "@" then                          -- remote control as a tool - notify robot in current block of pointed position, using keyboard event type 0
+		if script == "@" then -- remote control as a tool - notify robot in current block of pointed position, using keyboard event type 0
 			local round = math.floor
 			local r     = basic_robot.radius
-			local ry = 2 * r -- note: this is skyblock adjusted
+			local ry    = 2 * r -- note: this is skyblock adjusted
 			local pos   = pointed_thing.under
 			if not pos then return end
 			local ppos = {
@@ -2059,7 +2064,8 @@ minetest.register_craftitem("basic_robot:control", {
 		end
 
 
-		local ids = basic_robot.ids[owner] if not ids then setupid(owner) end
+		local ids = basic_robot.ids[owner]
+		if not ids then setupid(owner) end
 		local id = basic_robot.ids[owner].id or 1 -- read active id
 		local robot_name = owner .. id
 
