@@ -10,11 +10,11 @@ dofile(minetest.get_modpath("basic_robot").."/settings.lua") -- read configurati
 basic_robot.gui = {}; local robogui = basic_robot.gui -- gui management
 basic_robot.data = {}; -- stores all robot related data
 --[[
-[name] = { sandbox= .., bytecode = ..., ram = ..., obj = robot object, spawnpos= ..., authlevel = ... , t = code execution time} 
+[robot_name] = { sandbox= .., bytecode = ..., ram = ..., obj = robot object, spawnpos= ..., authlevel = ... , t = code execution time} 
 robot object = object of entity, used to manipulate movements and more
 --]]
 basic_robot.ids = {}; -- stores maxid for each player
---[name] = {id = .., maxid = .. }, current id for robot controller, how many robot ids player can use
+--[player_name] = {id = .., maxid = .. }, current id for robot controller, how many robot ids player can use
 
 basic_robot.virtual_players = {}; -- this way robot can interact with the world as "player" TODO
 
@@ -29,9 +29,9 @@ local check_code, preprocess_code,is_inside_string;
 
 
 -- SANDBOX for running lua code isolated and safely
-function getSandboxEnv (name)
+function getSandboxEnv (robot_name)
 	
-	local authlevel = basic_robot.data[name].authlevel or 0;
+	local authlevel = basic_robot.data[robot_name].authlevel or 0;
 
 	local commands = basic_robot.commands;
 	local directions = {left = 1, right = 2, forward = 3, backward = 4, up = 5, down = 6, 
@@ -39,7 +39,7 @@ function getSandboxEnv (name)
 		left_up = 11, right_up = 12, forward_up = 13,  backward_up = 14
 		}
 	
-	local pname = string.sub(name,1,-2)
+	local pname = string.sub(robot_name,1,-2)
 	if not basic_robot.data[pname] then basic_robot.data[pname] = {} end
 	-- all robots by player share same rom now
 	if not basic_robot.data[pname].rom then basic_robot.data[pname].rom = {} end -- create rom if not yet existing
@@ -51,7 +51,7 @@ function getSandboxEnv (name)
 		robot_version = function() return basic_robot.version end,
 		
 		boost = function(v) 
-			if math.abs(v)>2 then v = 0 end; local obj = basic_robot.data[name].obj;
+			if math.abs(v)>2 then v = 0 end; local obj = basic_robot.data[robot_name].obj;
 			if v == 0 then 
 				local pos = obj:get_pos(); pos.x = math.floor(pos.x+0.5);pos.y = math.floor(pos.y+0.5); pos.z = math.floor(pos.z+0.5);
 				obj:setpos(pos); obj:set_velocity({x=0,y=0,z=0});
@@ -62,48 +62,48 @@ function getSandboxEnv (name)
 		end,
 		
 		turn = {
-			left = function() commands.turn(name,math.pi/2) end,
-			right = function() commands.turn(name,-math.pi/2) end,
-			angle = function(angle) commands.turn(name,angle*math.pi/180) end,
+			left = function() commands.turn(robot_name,math.pi/2) end,
+			right = function() commands.turn(robot_name,-math.pi/2) end,
+			angle = function(angle) commands.turn(robot_name,angle*math.pi/180) end,
 		},
 		
 		pickup = function(r) -- pick up items around robot
-			return commands.pickup(r, name);
+			return commands.pickup(r, robot_name);
 		end,
 		
 		craft = function(item, idx,mode, amount)
-			return commands.craft(item, mode, idx, amount, name)
+			return commands.craft(item, mode, idx, amount, robot_name)
 		end,
 		
 		pause = function(amount) -- pause coroutine
-			if not basic_robot.data[name].cor then error("you must start program with '--coroutine' to use pause()") return end
-			if not amount or basic_robot.data[name].operations<amount then
+			if not basic_robot.data[robot_name].cor then error("you must start program with '--coroutine' to use pause()") return end
+			if not amount or basic_robot.data[robot_name].operations<amount then
 				coroutine.yield()
 			end
 		end,
 		
 		self = {
-			pos = function() return basic_robot.data[name].obj:get_pos() end,
-			spawnpos = function() local pos = basic_robot.data[name].spawnpos; return {x=pos.x,y=pos.y,z=pos.z} end,
-			name = function() return name end,
-			operations = function() return basic_robot.data[name].operations end,
-			viewdir = function() local yaw = basic_robot.data[name].obj:getyaw(); return {x=-math.sin(yaw), y = 0, z=math.cos(yaw)} end,
+			pos = function() return basic_robot.data[robot_name].obj:get_pos() end,
+			spawnpos = function() local pos = basic_robot.data[robot_name].spawnpos; return {x=pos.x,y=pos.y,z=pos.z} end,
+			name = function() return robot_name end,
+			operations = function() return basic_robot.data[robot_name].operations end,
+			viewdir = function() local yaw = basic_robot.data[robot_name].obj:getyaw(); return {x=-math.sin(yaw), y = 0, z=math.cos(yaw)} end,
 			
 			set_properties = function(properties)
-				if not properties then return end; local obj = basic_robot.data[name].obj;
+				if not properties then return end; local obj = basic_robot.data[robot_name].obj;
 				obj:set_properties(properties);
 			end,
 			
 			set_animation =  function(anim_start,anim_end,anim_speed,anim_stand_start)
-				local obj = basic_robot.data[name].obj;
+				local obj = basic_robot.data[robot_name].obj;
 				obj:set_animation({x=anim_start,y=anim_end}, anim_speed, anim_stand_start)
 			end,
 			
 			listen = function (mode) -- will robot listen to chat?
 				if mode == 1 then 
-					basic_robot.data.listening[name] = true
+					basic_robot.data.listening[robot_name] = true
 				else
-					basic_robot.data.listening[name] = nil
+					basic_robot.data.listening[robot_name] = nil
 				end
 			end,
 			
@@ -122,22 +122,22 @@ function getSandboxEnv (name)
 				if rname then -- area already registered for listening
 					return rname
 				end
-				basic_robot.data.punchareas[hppos] = name; -- register robot name
+				basic_robot.data.punchareas[hppos] = robot_name; -- register robot name
 			end,
 			
 			listen_msg = function() 
-				local msg = basic_robot.data[name].listen_msg;
-				local speaker = basic_robot.data[name].listen_speaker;
-				basic_robot.data[name].listen_msg = nil; 
-				basic_robot.data[name].listen_speaker = nil; 
+				local msg = basic_robot.data[robot_name].listen_msg;
+				local speaker = basic_robot.data[robot_name].listen_speaker;
+				basic_robot.data[robot_name].listen_msg = nil; 
+				basic_robot.data[robot_name].listen_speaker = nil; 
 				return speaker,msg
 			end,
 
 			read_mail = function()
-				local mail = basic_robot.data[name].listen_mail;
-				local sender = basic_robot.data[name].listen_sender;
-				basic_robot.data[name].listen_mail = nil; 
-				basic_robot.data[name].listen_sender = nil; 
+				local mail = basic_robot.data[robot_name].listen_mail;
+				local sender = basic_robot.data[robot_name].listen_sender;
+				basic_robot.data[robot_name].listen_mail = nil; 
+				basic_robot.data[robot_name].listen_sender = nil; 
 				return sender,mail
 			end,
 			
@@ -145,36 +145,36 @@ function getSandboxEnv (name)
 			send_mail = function(target,mail)
 				if not basic_robot.data[target] then return false end
 				basic_robot.data[target].listen_mail = mail; 
-				basic_robot.data[target].listen_sender = name; 
+				basic_robot.data[target].listen_sender = robot_name; 
 			end,			
 			
 			remove = function()
 				error("abort")
-				basic_robot.data[name].obj:remove();
-				basic_robot.data[name].obj=nil;
+				basic_robot.data[robot_name].obj:remove();
+				basic_robot.data[robot_name].obj=nil;
 			end,
 			
 			reset = function()
-				local pos = basic_robot.data[name].spawnpos; 
-				local obj = basic_robot.data[name].obj;
+				local pos = basic_robot.data[robot_name].spawnpos; 
+				local obj = basic_robot.data[robot_name].obj;
 				obj:set_pos({x=pos.x,y=pos.y+1,z=pos.z}); obj:set_yaw(0);
 			end,
 			
 			set_libpos = function(pos)
-				local pos = basic_robot.data[name].spawnpos; local meta = minetest.get_meta(pos);
+				local pos = basic_robot.data[robot_name].spawnpos; local meta = minetest.get_meta(pos);
 				meta:set_string("libpos",pos.x .. " " .. pos.y .. " " .. pos.z)
 			end,
 			
 			spam = function (mode) -- allow more than one msg per "say"
 				if mode == 1 then 
-					basic_robot.data[name].allow_spam = true
+					basic_robot.data[robot_name].allow_spam = true
 				else
-					basic_robot.data[name].allow_spam = nil
+					basic_robot.data[robot_name].allow_spam = nil
 				end
 			end,
 			
 			fire = function(speed, pitch,gravity, texture, is_entity) -- experimental: fires an projectile
-				local obj = basic_robot.data[name].obj;
+				local obj = basic_robot.data[robot_name].obj;
 				local pos = obj:get_pos();
 				local yaw = obj:getyaw()+ math.pi/2;
 				pitch = pitch*math.pi/180
@@ -201,43 +201,43 @@ function getSandboxEnv (name)
 				obj:set_properties({textures = {texture or "default_furnace_fire_fg.png"}})
 				obj:setacceleration({x=0,y=-gravity,z=0});
 				local luaent = obj:get_luaentity();
-				luaent.name = name;
+				luaent.name = robot_name;
 				luaent.spawnpos = pos;
 		
 			end,
 			
 			fire_pos = function() 
-				local fire_pos = basic_robot.data[name].fire_pos;
-				basic_robot.data[name].fire_pos = nil; 
+				local fire_pos = basic_robot.data[robot_name].fire_pos;
+				basic_robot.data[robot_name].fire_pos = nil; 
 				return fire_pos
 			end,
 			
 			label = function(text)
-				local obj = basic_robot.data[name].obj;
+				local obj = basic_robot.data[robot_name].obj;
 				obj:set_properties({nametag = text or ""}); -- "[" .. name .. "] " .. 
 			end,
 			
 			display_text = function(text,linesize,size)
-				local obj = basic_robot.data[name].obj;
+				local obj = basic_robot.data[robot_name].obj;
 				return commands.display_text(obj,text,linesize,size)
 			end,
 			
 			find_path = function(pos) -- compute path
-				return commands.find_path(name,pos)
+				return commands.find_path(robot_name,pos)
 			end,
 
 			walk_path = function() -- walk to next node of path
-				return commands.walk_path(name)
+				return commands.walk_path(robot_name)
 			end,
 		},
 
 		machine = {-- adds technic like functionality to robots: power generation, smelting, grinding, compressing
-			energy = function() return basic_robot.data[name].menergy or 0 end,
-			generate_power =  function(input,amount) return commands.machine.generate_power(name,input, amount) end,
-			smelt =  function(input,amount) return commands.machine.smelt(name,input, amount) end,
-			grind =  function(input) return commands.machine.grind(name,input) end,
-			compress =  function(input) return commands.machine.compress(name,input) end,
-			transfer_power = function(amount,target) return commands.machine.transfer_power(name,amount,target) end,
+			energy = function() return basic_robot.data[robot_name].menergy or 0 end,
+			generate_power =  function(input,amount) return commands.machine.generate_power(robot_name,input, amount) end,
+			smelt =  function(input,amount) return commands.machine.smelt(robot_name,input, amount) end,
+			grind =  function(input) return commands.machine.grind(robot_name,input) end,
+			compress =  function(input) return commands.machine.compress(robot_name,input) end,
+			transfer_power = function(amount,target) return commands.machine.transfer_power(robot_name,amount,target) end,
 		},
 		
 		crypto = {-- basic cryptography - encryption, scramble, mod hash
@@ -249,23 +249,23 @@ function getSandboxEnv (name)
 			
 		
 		keyboard = {
-			get = function() return commands.keyboard.get(name) end,
-			set = function(pos,type) return commands.keyboard.set(basic_robot.data[name],pos,type) end,
+			get = function() return commands.keyboard.get(robot_name) end,
+			set = function(pos,type) return commands.keyboard.set(basic_robot.data[robot_name],pos,type) end,
 			read = function(pos) return minetest.get_node(pos).name end,
 		},
 		
 		find_nodes = 
 			function(nodename,r) 
 				if r>8 then return false end
-				local q = minetest.find_node_near(basic_robot.data[name].obj:get_pos(), r, nodename);
+				local q = minetest.find_node_near(basic_robot.data[robot_name].obj:get_pos(), r, nodename);
 				if q==nil then return false end
-				local p = basic_robot.data[name].obj:get_pos()
+				local p = basic_robot.data[robot_name].obj:get_pos()
 				return math.sqrt((p.x-q.x)^2+(p.y-q.y)^2+(p.z-q.z)^2)
 			end, -- in radius around position
 		
 		find_player = 
 			function(r,pos) 
-				pos = pos or basic_robot.data[name].obj:get_pos();
+				pos = pos or basic_robot.data[robot_name].obj:get_pos();
 				if r<0 or r>10 then return false end
 				local objects =  minetest.get_objects_inside_radius(pos, r);
 				local plist = {};
@@ -279,13 +279,13 @@ function getSandboxEnv (name)
 			end, -- in radius around position
 		
 		player = {
-			getpos = function(name) 
-				local player = minetest.get_player_by_name(name); 
+			getpos = function(player_name) 
+				local player = minetest.get_player_by_name(player_name); 
 				if player then return player:get_pos() else return nil end 
 			end,
 			
-			getview = function(name) 
-				local player = minetest.get_player_by_name(name); 
+			getview = function(player_name) 
+				local player = minetest.get_player_by_name(player_name); 
 				if player then return player:get_look_dir() else return nil end 
 			end,
 			
@@ -299,20 +299,20 @@ function getSandboxEnv (name)
 			end
 		},
 		
-		attack = function(target) return basic_robot.commands.attack(name,target) end, -- attack player if nearby
+		attack = function(target) return basic_robot.commands.attack(robot_name,target) end, -- attack player if nearby
 		
-		grab = function(target) return basic_robot.commands.grab(name,target) end,
+		grab = function(target) return basic_robot.commands.grab(robot_name,target) end,
 		
 		
 		say = function(text, pname)
-			if not basic_robot.data[name].quiet_mode and not pname then
-				minetest.chat_send_all("<robot ".. name .. "> " .. text)
-				if not basic_robot.data[name].allow_spam then 
-					basic_robot.data[name].quiet_mode=true
+			if not basic_robot.data[robot_name].quiet_mode and not pname then
+				minetest.chat_send_all("<robot ".. robot_name .. "> " .. text)
+				if not basic_robot.data[robot_name].allow_spam then 
+					basic_robot.data[robot_name].quiet_mode=true
 				end
 			else
-				if not pname then pname = basic_robot.data[name].owner end
-				minetest.chat_send_player(pname,"<robot ".. name .. "> " .. text) -- send chat only to player pname
+				if not pname then pname = basic_robot.data[robot_name].owner end
+				minetest.chat_send_player(pname,"<robot ".. robot_name .. "> " .. text) -- send chat only to player pname
 			end
 		end,
 		
@@ -320,7 +320,7 @@ function getSandboxEnv (name)
 		book = {
 			read = function(i) 
 				if i<=0 or i > 32 then return nil end
-				local pos = basic_robot.data[name].spawnpos; local meta = minetest.get_meta(pos);
+				local pos = basic_robot.data[robot_name].spawnpos; local meta = minetest.get_meta(pos);
 				local libposstring = meta:get_string("libpos");
 				local words = {}; for word in string.gmatch(libposstring,"%S+") do words[#words+1]=word end
 				local libpos = {x=tonumber(words[1] or pos.x),y=tonumber(words[2] or pos.y),z=tonumber(words[3] or pos.z)};
@@ -334,22 +334,22 @@ function getSandboxEnv (name)
 			
 			write = function(i,title,text)
 				if i<=0 or i > 32 then return nil end
-				local inv = minetest.get_meta(basic_robot.data[name].spawnpos):get_inventory();
+				local inv = minetest.get_meta(basic_robot.data[robot_name].spawnpos):get_inventory();
 				local stackname = inv:get_stack("library",i):get_name();
-				if basic_robot.data[name].authlevel<3 and (stackname ~= "default:book_written" and stackname~= "default:book") then return nil end
-				local stack = basic_robot.commands.write_book(basic_robot.data[name].owner,title,text);
+				if basic_robot.data[robot_name].authlevel<3 and (stackname ~= "default:book_written" and stackname~= "default:book") then return nil end
+				local stack = basic_robot.commands.write_book(basic_robot.data[robot_name].owner,title,text);
 				if stack then inv:set_stack("library", i, stack) end
 			end
 		},
 		
 		code = {
 			set = function(text) -- replace bytecode in sandbox with this
-				local err = commands.setCode( name, text ); -- compile code
+				local err = commands.setCode( robot_name, text ); -- compile code
 				if err then
-					minetest.chat_send_player(name,"#ROBOT CODE COMPILATION ERROR : " .. err) 
-					local obj = basic_robot.data[name].obj;
+					minetest.chat_send_player(robot_name,"#ROBOT CODE COMPILATION ERROR : " .. err) 
+					local obj = basic_robot.data[robot_name].obj;
 					obj:remove();
-					basic_robot.data[name].obj = nil;
+					basic_robot.data[robot_name].obj = nil;
 					return
 				end
 			end,
@@ -423,61 +423,61 @@ function getSandboxEnv (name)
 	
 	env.move = {}; -- changes position of robot
 	for dir, dir_id in pairs(directions) do
-		env.move[dir]  =  function() return commands.move(name,dir_id) end
+		env.move[dir]  =  function() return commands.move(robot_name,dir_id) end
 	end
 	
 	env.dig = {};
 	for dir, dir_id in pairs(directions) do
-		env.dig[dir]  =  function() return commands.dig(name,dir_id) end
+		env.dig[dir]  =  function() return commands.dig(robot_name,dir_id) end
 	end
 	
 	env.place = {};
 	for dir, dir_id in pairs(directions) do
-		env.place[dir] = function(nodename, param2) return commands.place(name,nodename, param2, dir_id) end
+		env.place[dir] = function(nodename, param2) return commands.place(robot_name,nodename, param2, dir_id) end
 	end
 	
 	env.insert = {}; -- insert item from robot inventory into another inventory
 	for dir, dir_id in pairs(directions) do
-		env.insert[dir] = function(item, inventory) return commands.insert_item(name,item, inventory,dir_id) end
+		env.insert[dir] = function(item, inventory) return commands.insert_item(robot_name,item, inventory,dir_id) end
 	end
 
 	env.take = {}; -- takes item from inventory and puts it in robot inventory
 	for dir, dir_id in pairs(directions) do
-		env.take[dir] = function(item, inventory) return commands.take_item(name,item, inventory,dir_id) end
+		env.take[dir] = function(item, inventory) return commands.take_item(robot_name,item, inventory,dir_id) end
 	end
 	
 	env.check_inventory = {};
 	for dir, dir_id in pairs(directions) do
-		env.check_inventory[dir] = function(itemname, inventory,i) return commands.check_inventory(name,itemname, inventory,i,dir_id) end
+		env.check_inventory[dir] = function(itemname, inventory,i) return commands.check_inventory(robot_name,itemname, inventory,i,dir_id) end
 	end
-	env.check_inventory.self = function(itemname, inventory,i) return commands.check_inventory(name,itemname, inventory,i,0) end;
+	env.check_inventory.self = function(itemname, inventory,i) return commands.check_inventory(robot_name,itemname, inventory,i,0) end;
 	
 	env.activate = {};
 	for dir, dir_id in pairs(directions) do
-		env.activate[dir] = function(mode) return commands.activate(name,mode, dir_id) end
+		env.activate[dir] = function(mode) return commands.activate(robot_name,mode, dir_id) end
 	end
 	
 	env.read_node = {};
 	for dir, dir_id in pairs(directions) do
-		env.read_node[dir] = function() return commands.read_node(name,dir_id) end
+		env.read_node[dir] = function() return commands.read_node(robot_name,dir_id) end
 	end
 	
 	env.read_text = {} -- returns text
 	for dir, dir_id in pairs(directions) do
-		env.read_text[dir] = function(stringname,mode) return commands.read_text(name,mode,dir_id,stringname) end
+		env.read_text[dir] = function(stringname,mode) return commands.read_text(robot_name,mode,dir_id,stringname) end
 	end
 	
 	env.write_text = {} -- returns text
 	for dir, dir_id in pairs(directions) do
-		env.write_text[dir] = function(text) return commands.write_text(name, dir_id,text) end
+		env.write_text[dir] = function(text) return commands.write_text(robot_name, dir_id,text) end
 	end
 	
 	--farming specials
 	env.machine.place_seed = {}; local env_machine_place_seed = env.machine.place_seed
 	env.machine.dig_seed = {}; local env_machine_dig_seed = env.machine.dig_seed;
 	for dir, dir_id in pairs(directions) do
-		env_machine_place_seed[dir] = function(seedbookname) return commands.machine.place_seed(name,dir_id,seedbookname) end
-		env_machine_dig_seed[dir] = function(dir) return commands.machine.dig_seed(name,dir_id) end
+		env_machine_place_seed[dir] = function(seedbookname) return commands.machine.place_seed(robot_name,dir_id,seedbookname) end
+		env_machine_dig_seed[dir] = function(dir) return commands.machine.dig_seed(robot_name,dir_id) end
 	end	
 			
 	if authlevel>=1 then -- robot privs
@@ -494,49 +494,49 @@ function getSandboxEnv (name)
 		}
 		
 		env.code.run = function(script)
-			if basic_robot.data[name].authlevel < 3 then
+			if basic_robot.data[robot_name].authlevel < 3 then
 				local err = check_code(script);
-				script = preprocess_code(script, basic_robot.call_limit[basic_robot.data[name].authlevel+1]);
+				script = preprocess_code(script, basic_robot.call_limit[basic_robot.data[robot_name].authlevel+1]);
 				if err then 
-					minetest.chat_send_player(name,"#ROBOT CODE CHECK ERROR : " .. err) 
+					minetest.chat_send_player(robot_name,"#ROBOT CODE CHECK ERROR : " .. err) 
 					return 
 				end
 			end
 			
 			local ScriptFunc, CompileError = loadstring( script )
 			if CompileError then
-				minetest.chat_send_player(name, "#code.run: compile error " .. CompileError )
+				minetest.chat_send_player(robot_name, "#code.run: compile error " .. CompileError )
 				return false
 			end
 		
-			setfenv( ScriptFunc, basic_robot.data[name].sandbox )
+			setfenv( ScriptFunc, basic_robot.data[robot_name].sandbox )
 		
 			local _, RuntimeError = pcall( ScriptFunc );
 			if RuntimeError then
-				minetest.chat_send_player(name, "#code.run: run error " .. RuntimeError )
+				minetest.chat_send_player(robot_name, "#code.run: run error " .. RuntimeError )
 				return false
 			end
 			return true
 		end
 		
 		env.self.read_form = function()
-			local fields = basic_robot.data[name].read_form;
-			local sender = basic_robot.data[name].form_sender;
-			basic_robot.data[name].read_form = nil; 
-			basic_robot.data[name].form_sender = nil; 
+			local fields = basic_robot.data[robot_name].read_form;
+			local sender = basic_robot.data[robot_name].form_sender;
+			basic_robot.data[robot_name].read_form = nil; 
+			basic_robot.data[robot_name].form_sender = nil; 
 			return sender,fields
 		end
 			
 		env.self.show_form = function(playername, form)
-			commands.show_form(name, playername, form)
+			commands.show_form(robot_name, playername, form)
 		end
 	end
 	
 	-- set up sandbox for puzzle
 		
 	if authlevel>=2 then -- puzzle privs
-		basic_robot.data[name].puzzle = {};
-		local data = basic_robot.data[name];
+		basic_robot.data[robot_name].puzzle = {};
+		local data = basic_robot.data[robot_name];
 		local pdata = data.puzzle;
 		pdata.triggerdata = {};
 		pdata.gamedata = {};
@@ -754,16 +754,16 @@ local function CompileCode ( script )
 	return ScriptFunc, nil
 end
 
-local function initSandbox (name) 
-	basic_robot.data[name].sandbox = getSandboxEnv (name);
+local function initSandbox (robot_name) 
+	basic_robot.data[robot_name].sandbox = getSandboxEnv (robot_name);
 end
 
-local function setCode( name, script ) -- to run script: 1. initSandbox 2. setCode 3. runSandbox
+local function setCode( robot_name, script ) -- to run script: 1. initSandbox 2. setCode 3. runSandbox
 	local err;
 	local cor = false;
 	if string.find(string.sub(script,1,32), "coroutine") then cor = true end
 	
-	local authlevel = basic_robot.data[name].authlevel;
+	local authlevel = basic_robot.data[robot_name].authlevel;
 	
 	if authlevel<3 then -- not admin
 		err = check_code(script);
@@ -776,21 +776,21 @@ local function setCode( name, script ) -- to run script: 1. initSandbox 2. setCo
 		
 	local bytecode, err = CompileCode ( script );
 	if err then return err end
-	basic_robot.data[name].bytecode = bytecode;
+	basic_robot.data[robot_name].bytecode = bytecode;
 	
 	if cor then -- create coroutine if requested
-		basic_robot.data[name].cor = coroutine.create(bytecode)
+		basic_robot.data[robot_name].cor = coroutine.create(bytecode)
 	else 
-		basic_robot.data[name].cor = nil
+		basic_robot.data[robot_name].cor = nil
 	end
 	return nil
 end
 
 basic_robot.commands.setCode=setCode; -- so we can use it
 
-local function runSandbox( name)
+local function runSandbox( robot_name)
     
-	local data = basic_robot.data[name]
+	local data = basic_robot.data[robot_name]
 	local ScriptFunc = data.bytecode;
 	if not ScriptFunc then 
 		return "Bytecode missing."
@@ -821,8 +821,8 @@ end
 
 -- note: to see memory used by lua in kbytes: collectgarbage("count")
 
-local get_authlevel = function(name) -- given player name return auth level
-	local privs = minetest.get_player_privs(name); 
+local get_authlevel = function(player_name) -- given player name return auth level
+	local privs = minetest.get_player_privs(player_name); 
 	local authlevel = 0;
 	if privs.privs then -- set auth level depending on privs
 		authlevel = 3
@@ -888,13 +888,13 @@ local robot_spawner_update_form = function (pos, mode)
 end
 
 basic_robot.editor = {};
-editor_get_lines = function(text,name)
-	local data = basic_robot.editor[name]; 
+editor_get_lines = function(text,player_name)
+	local data = basic_robot.editor[player_name]; 
 	if not data then 
-		basic_robot.editor[name] = {}; 
-		basic_robot.editor[name].lines = {};
-		basic_robot.editor[name].selection = 1;
-		data = basic_robot.editor[name]; 
+		basic_robot.editor[player_name] = {}; 
+		basic_robot.editor[player_name].lines = {};
+		basic_robot.editor[player_name].selection = 1;
+		data = basic_robot.editor[player_name]; 
 	else
 		data.lines = {};
 	end
@@ -904,10 +904,10 @@ editor_get_lines = function(text,name)
 end
 
 
-code_edit_form = function(pos,name)
-	local lines = basic_robot.editor[name].lines;
-	local input = minetest.formspec_escape(basic_robot.editor[name].input or "");
-	local selection = basic_robot.editor[name].selection or 1;
+code_edit_form = function(pos,player_name)
+	local lines = basic_robot.editor[player_name].lines;
+	local input = minetest.formspec_escape(basic_robot.editor[player_name].input or "");
+	local selection = basic_robot.editor[player_name].selection or 1;
 	
 	local list = "";
 	for _,line in pairs(lines) do list = list .. minetest.formspec_escape(line) .. "," end
@@ -925,21 +925,21 @@ end
 local function init_robot(obj, resetSandbox)
 	
 	local self = obj:get_luaentity();
-	local name = self.name; -- robot name
-	basic_robot.data[name].obj = obj; --register object
+	local robot_name = self.name;
+	basic_robot.data[robot_name].obj = obj; --register object
 	--init settings
-	basic_robot.data.listening[name] = nil -- dont listen at beginning
-	basic_robot.data[name].quiet_mode = false; -- can chat globally
+	basic_robot.data.listening[robot_name] = nil -- dont listen at beginning
+	basic_robot.data[robot_name].quiet_mode = false; -- can chat globally
 	
 	-- check if admin robot
-	basic_robot.data[name].authlevel = self.authlevel or 0
+	basic_robot.data[robot_name].authlevel = self.authlevel or 0
 	
 	--robot appearance,armor...
-	obj:set_properties({infotext = "robot " .. name});
-	obj:set_properties({nametag = "[" .. name.."]",nametag_color = "LawnGreen"});
+	obj:set_properties({infotext = "robot " .. robot_name});
+	obj:set_properties({nametag = "[" .. robot_name.."]",nametag_color = "LawnGreen"});
 	obj:set_armor_groups({fleshy=0})
 	
-	if resetSandbox then initSandbox ( name ) end
+	if resetSandbox then initSandbox ( robot_name ) end
 end
 
 minetest.register_entity("basic_robot:robot",{
@@ -1041,20 +1041,20 @@ minetest.register_entity("basic_robot:robot",{
 				self.running = 0; -- stop execution
 				
 				if string.find(err,"stack overflow") then
-					local name = self.name;
-					local pos = basic_robot.data[name].spawnpos;
+					local robot_name = self.name;
+					local pos = basic_robot.data[robot_name].spawnpos;
 					minetest.set_node(pos, {name = "air"});
 					--local privs = core.get_player_privs(self.owner);privs.interact = false; 
 					--core.set_player_privs(self.owner, privs); minetest.auth_reload()
 					minetest.kick_player(self.owner, "#basic_robot: stack overflow at " .. pos.x.. " " .. pos.y .. " " .. pos.z)
 				end
 				
-				local name = self.name;
-				local pos = basic_robot.data[name].spawnpos;
+				local robot_name = self.name;
+				local pos = basic_robot.data[robot_name].spawnpos;
 			
-				if not basic_robot.data[name] then return end
-				if basic_robot.data[name].obj then
-					basic_robot.data[name].obj = nil;
+				if not basic_robot.data[robot_name] then return end
+				if basic_robot.data[robot_name].obj then
+					basic_robot.data[robot_name].obj = nil;
 				end
 				
 				self.object:remove();
@@ -1105,7 +1105,7 @@ local spawn_robot = function(pos,node,ttl)
 	pos.y=pos.y+1;
 	local owner = meta:get_string("owner")
 	local id = meta:get_int("id");
-	local name = owner..id;
+	local robot_name = owner..id;
 	
 
 	if id <= 0 then -- just compile code and run it, no robot entity spawn
@@ -1118,16 +1118,16 @@ local spawn_robot = function(pos,node,ttl)
 		end
 		-- compile code & run it
 		local err;
-		local data = basic_robot.data[name];
+		local data = basic_robot.data[robot_name];
 		if codechange or (not data) then -- reset all, sandbox will change too
-			basic_robot.data[name] = {}; data = basic_robot.data[name];
+			basic_robot.data[robot_name] = {}; data = basic_robot.data[robot_name];
 			meta:set_string("infotext",minetest.get_gametime().. " code changed ")
 			data.owner = owner;
 			data.authlevel = meta:get_int("authlevel")
 			
 			local sec_hash = minetest.get_password_hash("",data.authlevel.. owner .. basic_robot.password) 
 			if meta:get_string("sec_hash")~= sec_hash then
-				minetest.chat_send_player(owner,"#ROBOT: " .. name .. " is using fake auth level. dig and place again.")
+				minetest.chat_send_player(owner,"#ROBOT: " .. robot_name .. " is using fake auth level. dig and place again.")
 				return
 			end
 			
@@ -1172,7 +1172,7 @@ local spawn_robot = function(pos,node,ttl)
 		end
 		
 		--sandbox init
-		if not data.sandbox then data.sandbox = getSandboxEnv (name) end
+		if not data.sandbox then data.sandbox = getSandboxEnv (robot_name) end
 
 		-- actual code run process			
 		data.operations = basic_robot.maxoperations;
@@ -1189,10 +1189,10 @@ local spawn_robot = function(pos,node,ttl)
 
 	
 	-- if robot entity already exists refresh it
-	if basic_robot.data[name] and basic_robot.data[name].obj then
-		minetest.chat_send_player(owner,"#ROBOT: ".. name .. " already active, removing ")
-		basic_robot.data[name].obj:remove();
-		basic_robot.data[name].obj = nil;
+	if basic_robot.data[robot_name] and basic_robot.data[robot_name].obj then
+		minetest.chat_send_player(owner,"#ROBOT: ".. robot_name .. " already active, removing ")
+		basic_robot.data[robot_name].obj:remove();
+		basic_robot.data[robot_name].obj = nil;
 	end
 
 	local objects =  minetest.get_objects_inside_radius(pos, 0.9);
@@ -1202,22 +1202,22 @@ local spawn_robot = function(pos,node,ttl)
 	local luaent = obj:get_luaentity();
 	
 	luaent.owner = owner;
-	luaent.name = name;
+	luaent.name = robot_name;
 	luaent.code = meta:get_string("code");
     luaent.spawnpos = {x=pos.x,y=pos.y-1,z=pos.z};
 	luaent.authlevel = meta:get_int("authlevel")
 	
 	local sec_hash = minetest.get_password_hash("",luaent.authlevel.. owner .. basic_robot.password) 
 	if meta:get_string("sec_hash")~= sec_hash then
-		minetest.chat_send_player(owner,"#ROBOT: " .. name .. " is using fake auth level.  dig and place again.")
+		minetest.chat_send_player(owner,"#ROBOT: " .. robot_name .. " is using fake auth level.  dig and place again.")
 		obj:remove();
 		return
 	end
 			
-	local data = basic_robot.data[name];
+	local data = basic_robot.data[robot_name];
 	if data == nil then
-		basic_robot.data[name] = {};
-		data = basic_robot.data[name];
+		basic_robot.data[robot_name] = {};
+		data = basic_robot.data[robot_name];
 	end
 	
 	data.owner = owner;
@@ -1280,13 +1280,13 @@ local despawn_robot = function(pos)
 	local owner = meta:get_string("owner")
 	local id = meta:get_int("id"); 
 		if id <= 0 then meta:set_int("codechange",1) return end
-	local name = owner..id;
+	local robot_name = owner..id;
 	
 	-- if robot already exists remove it
-	if basic_robot.data[name] and basic_robot.data[name].obj then
-		minetest.chat_send_player(owner,"#ROBOT: ".. name .. " removed")
-		basic_robot.data[name].obj:remove();
-		basic_robot.data[name].obj = nil;
+	if basic_robot.data[robot_name] and basic_robot.data[robot_name].obj then
+		minetest.chat_send_player(owner,"#ROBOT: ".. robot_name .. " removed")
+		basic_robot.data[robot_name].obj:remove();
+		basic_robot.data[robot_name].obj = nil;
 	end
 	
 	local objects =  minetest.get_objects_inside_radius(pos, 0.9);
@@ -1298,8 +1298,8 @@ end
 --process forms from spawner
 local on_receive_robot_form = function(pos, formname, fields, sender)
 		
-		local name = sender:get_player_name();
-		if minetest.is_protected(pos,name) then return end
+		local player_name = sender:get_player_name();
+		if minetest.is_protected(pos,player_name) then return end
 		
 		if fields.OK then
 			local meta = minetest.get_meta(pos);
@@ -1307,17 +1307,17 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 			if fields.code then 
 				local code = fields.code or "";
 				if string.len(code) > 64000 then 
-					minetest.chat_send_all("#ROBOT: " .. name .. " is spamming with long text.") return 
+					minetest.chat_send_all("#ROBOT: " .. player_name .. " is spamming with long text.") return 
 				end
 				
-				if meta:get_int("authlevel") > 1 and name ~= meta:get_string("owner")then
-					local privs = minetest.get_player_privs(name); -- only admin can edit admin robot code
+				if meta:get_int("authlevel") > 1 and player_name ~= meta:get_string("owner")then
+					local privs = minetest.get_player_privs(player_name); -- only admin can edit admin robot code
 					if not privs.privs then
 						return
 					end
 				end
 				
-				minetest.chat_send_player(name,"#ROBOT: code saved " .. os.date("%H:%M:%S"))
+				minetest.chat_send_player(player_name,"#ROBOT: code saved " .. os.date("%H:%M:%S"))
 				meta:set_string("code", code); meta:set_int("codechange",1)
 			end
 			
@@ -1326,7 +1326,7 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 				local owner = meta:get_string("owner")
 				if not basic_robot.ids[owner] then setupid(owner) end 
 				if id<-1000 or id>basic_robot.ids[owner].maxid then 
-					local privs = minetest.get_player_privs(name);
+					local privs = minetest.get_player_privs(player_name);
 					if not privs.privs then return end
 				end
 				meta:set_int("id",id) -- set active id for spawner
@@ -1340,30 +1340,30 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 		if fields.EDIT then
 			local meta = minetest.get_meta(pos);if not meta then return end
 			if meta:get_int("admin") == 1 then
-				local privs = minetest.get_player_privs(name); -- only admin can edit admin robot code
+				local privs = minetest.get_player_privs(player_name); -- only admin can edit admin robot code
 				if not privs.privs then
 					return
 				end
 			end
 			
 			local code = meta:get_string("code");
-			editor_get_lines(code,name);
-			local form = code_edit_form(pos,name);
+			editor_get_lines(code,player_name);
+			local form = code_edit_form(pos,player_name);
 			minetest.after(0, -- why it ignores this form sometimes? old form interfering?
 				function()
-					minetest.show_formspec(name, "robot_editor_:"..minetest.pos_to_string(pos), form);
+					minetest.show_formspec(player_name, "robot_editor_:"..minetest.pos_to_string(pos), form);
 				end
 			)
 			return
 		end
 		
 		if fields.help then ----- INGAME HELP ------
-			robogui["robot_help"].show(name)
+			robogui["robot_help"].show(player_name)
 			return
 		end
 		
 		if fields.spawn then
-			minetest.log("action", "basic_robot manual start by " .. name .. " at " .. pos.x .. " " .. pos.y .. " " .. pos.z)
+			minetest.log("action", "basic_robot manual start by " .. player_name .. " at " .. pos.x .. " " .. pos.y .. " " .. pos.z)
 			spawn_robot(pos,0,0);
 			return
 		end
@@ -1373,14 +1373,14 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 			local meta = minetest.get_meta(pos);
 			local owner = meta:get_string("owner");
 			local id = meta:get_int("id");
-			local name = owner..id;
+			local robot_name = owner..id;
 		
 			if id<=0 then meta:set_int("codechange",1) end
 			
-			if not basic_robot.data[name] then return end
-			if basic_robot.data[name].obj then
-				basic_robot.data[name].obj:remove();
-				basic_robot.data[name].obj = nil;
+			if not basic_robot.data[robot_name] then return end
+			if basic_robot.data[robot_name].obj then
+				basic_robot.data[robot_name].obj:remove();
+				basic_robot.data[robot_name].obj = nil;
 			end
 			return
 		end
@@ -1404,7 +1404,7 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 			
 			local owner = meta:get_string("owner");
 			local id = meta:get_int("id");
-			local name = owner..id;
+			local robot_name = owner..id;
 			
 			local libposstring = meta:get_string("libpos");
 			local words = {}; for word in string.gmatch(libposstring,"%S+") do words[#words+1]=word end
@@ -1460,11 +1460,11 @@ minetest.register_on_player_receive_fields(
 		
 		local robot_formname = "robot_worker_";
 		if string.find(formname,robot_formname) then
-			local name = string.sub(formname, string.len(robot_formname)+1); -- robot name
+			local robot_name = string.sub(formname, string.len(robot_formname)+1);
 			local sender = player:get_player_name(); --minetest.get_player_by_name(name);
 			
-			if basic_robot.data[name] and basic_robot.data[name].spawnpos then
-				local pos = basic_robot.data[name].spawnpos;
+			if basic_robot.data[robot_name] and basic_robot.data[robot_name].spawnpos then
+				local pos = basic_robot.data[robot_name].spawnpos;
 				
 				local privs = minetest.get_player_privs(player:get_player_name());
 				local is_protected = minetest.is_protected(pos, player:get_player_name());
@@ -1482,7 +1482,7 @@ minetest.register_on_player_receive_fields(
 		
 		local robot_formname = "robot_control_";
 		if string.find(formname,robot_formname) then
-			local name = string.sub(formname, string.len(robot_formname)+1); -- robot name
+			local robot_name = string.sub(formname, string.len(robot_formname)+1);
 			if fields.OK and fields.code then
 				local item = player:get_wielded_item(); --set_wielded_item(item)
 				if string.len(fields.code) > 1000 then 
@@ -1501,32 +1501,32 @@ minetest.register_on_player_receive_fields(
 		
 		local robot_formname = "robot_manual_control_";
 		if string.find(formname,robot_formname) then
-			local name = string.sub(formname, string.len(robot_formname)+1); -- robot name
+			local robot_name = string.sub(formname, string.len(robot_formname)+1);
 			
 			local commands = basic_robot.commands;
 			
 			if fields.turnleft then
-				pcall(function () commands.turn(name,math.pi/2) end)
+				pcall(function () commands.turn(robot_name,math.pi/2) end)
 			elseif fields.turnright then
-				pcall(function () commands.turn(name,-math.pi/2) end)
+				pcall(function () commands.turn(robot_name,-math.pi/2) end)
 			elseif fields.forward then
-				pcall(function () commands.move(name,3) end)
+				pcall(function () commands.move(robot_name,3) end)
 			elseif fields.back then
-				pcall(function () commands.move(name,4) end)
+				pcall(function () commands.move(robot_name,4) end)
 			elseif fields.left then
-				pcall(function () commands.move(name,1) end)
+				pcall(function () commands.move(robot_name,1) end)
 			elseif fields.right then
-				pcall(function () commands.move(name,2) end)
+				pcall(function () commands.move(robot_name,2) end)
 			elseif fields.dig then
-				pcall(function () basic_robot.data[name].operations = basic_robot.maxoperations; commands.dig(name,3) end)
+				pcall(function () basic_robot.data[robot_name].operations = basic_robot.maxoperations; commands.dig(robot_name,3) end)
 			elseif fields.up then
-				pcall(function () commands.move(name,5) end)
+				pcall(function () commands.move(robot_name,5) end)
 			elseif fields.down then
-				pcall(function () commands.move(name,6) end)
+				pcall(function () commands.move(robot_name,6) end)
 			elseif fields.digdown then
-				pcall(function () basic_robot.data[name].operations = basic_robot.maxoperations; commands.dig(name,6) end)
+				pcall(function () basic_robot.data[robot_name].operations = basic_robot.maxoperations; commands.dig(robot_name,6) end)
 			elseif fields.digup then
-				pcall(function () basic_robot.data[name].operations = basic_robot.maxoperations; commands.dig(name,5) end)
+				pcall(function () basic_robot.data[robot_name].operations = basic_robot.maxoperations; commands.dig(robot_name,5) end)
 			end
 			return
 		end
@@ -1567,7 +1567,7 @@ minetest.register_on_player_receive_fields(
 		
 		local robot_formname = "robot_editor_"; -- editor  gui TODO
 		if string.find(formname,robot_formname) then
-			local name = player:get_player_name();
+			local player_name = player:get_player_name();
 			local p = string.find(formname,":");
 			local pos = minetest.string_to_pos(string.sub(formname, p+1));
 			
@@ -1575,30 +1575,30 @@ minetest.register_on_player_receive_fields(
 				local list = fields.listname;
 				if string.sub(list,1,3) == "CHG" then
 					local selection = tonumber(string.sub(list,5)) or 1
-					basic_robot.editor[name].selection = selection;
-					local lines = basic_robot.editor[name].lines;
-					basic_robot.editor[name].input = lines[selection] or "";
-					minetest.show_formspec(name, "robot_editor_:"..minetest.pos_to_string(pos), code_edit_form(pos,name));
+					basic_robot.editor[player_name].selection = selection;
+					local lines = basic_robot.editor[player_name].lines;
+					basic_robot.editor[player_name].input = lines[selection] or "";
+					minetest.show_formspec(player_name, "robot_editor_:"..minetest.pos_to_string(pos), code_edit_form(pos,player_name));
 				end
 			elseif fields.UPDATE then
-				local lines = basic_robot.editor[name].lines or {};
-				local selection = basic_robot.editor[name].selection or 1;
+				local lines = basic_robot.editor[player_name].lines or {};
+				local selection = basic_robot.editor[player_name].selection or 1;
 				fields.input = fields.input or "";
 				fields.input = string.gsub(fields.input, '\\([%[%]\\,;])', '%1') -- dumb minetest POSTS escaped stuff...
 				lines[selection] = fields.input
-				basic_robot.editor[name].input = lines[selection];
-				minetest.show_formspec(name, "robot_editor_:"..minetest.pos_to_string(pos), code_edit_form(pos,name));
+				basic_robot.editor[player_name].input = lines[selection];
+				minetest.show_formspec(player_name, "robot_editor_:"..minetest.pos_to_string(pos), code_edit_form(pos,player_name));
 			elseif fields.DELETE then
-				local selection = basic_robot.editor[name].selection or 1;
-				table.remove(basic_robot.editor[name].lines,selection);
-				minetest.show_formspec(name, "robot_editor_:"..minetest.pos_to_string(pos), code_edit_form(pos,name));
+				local selection = basic_robot.editor[player_name].selection or 1;
+				table.remove(basic_robot.editor[player_name].lines,selection);
+				minetest.show_formspec(player_name, "robot_editor_:"..minetest.pos_to_string(pos), code_edit_form(pos,player_name));
 			elseif fields.INSERT then
-				local selection = basic_robot.editor[name].selection or 1;
-				table.insert(basic_robot.editor[name].lines,selection,"")
-				minetest.show_formspec(name, "robot_editor_:"..minetest.pos_to_string(pos), code_edit_form(pos,name));
+				local selection = basic_robot.editor[player_name].selection or 1;
+				table.insert(basic_robot.editor[player_name].lines,selection,"")
+				minetest.show_formspec(player_name, "robot_editor_:"..minetest.pos_to_string(pos), code_edit_form(pos,player_name));
 			elseif fields.SAVE then
-				local selection = basic_robot.editor[name].selection or 1;
-				local lines = basic_robot.editor[name].lines or {};
+				local selection = basic_robot.editor[player_name].selection or 1;
+				local lines = basic_robot.editor[player_name].lines or {};
 				if fields.input and fields.input~="" then 
 					fields.input = string.gsub(fields.input, '\\([%[%]\\,;])', '%1') -- dumb minetest POSTS escaped stuff...
 					lines[selection]= fields.input 
@@ -1606,8 +1606,8 @@ minetest.register_on_player_receive_fields(
 				local meta = minetest.get_meta(pos);
 				if not lines then return end
 
-   				if meta:get_int("authlevel") > 1 and name ~= meta:get_string("owner")then
-					local privs = minetest.get_player_privs(name); -- only admin can edit admin robot code
+   				if meta:get_int("authlevel") > 1 and player_name ~= meta:get_string("owner")then
+					local privs = minetest.get_player_privs(player_name); -- only admin can edit admin robot code
 					if not privs.privs then
 						return
 					end
@@ -1678,14 +1678,14 @@ end
 
 -- handle chats
 minetest.register_on_chat_message(
-function(name, message)
+function(player_name, message)
 	local hidden = false;
 	if string.sub(message,1,1) == "\\" then hidden = true; message = string.sub(message,2) end
 	local listeners = basic_robot.data.listening; -- which robots are listening?
 	for pname,_ in pairs(listeners) do
 		local data = basic_robot.data[pname];
 		data.listen_msg = message;
-		data.listen_speaker = name;
+		data.listen_speaker = player_name;
 	end
 	return hidden
 end
@@ -1836,14 +1836,14 @@ minetest.register_craftitem("basic_robot:control", {
 			local code = minetest.formspec_escape(itemstack:get_metadata());
 			local ids = basic_robot.ids[owner]; if not ids then setupid(owner) end
 			local id = basic_robot.ids[owner].id or 1; -- read active id for player
-			local name = owner..id;
+			local robot_name = owner..id;
 			
 			local form = 
 			"size[9.5,1.25]" ..  -- width, height
 			"textarea[1.25,-0.25;8.75,2.25;code;;".. code.."]"..
 			"button_exit[-0.25,-0.25;1.25,1;OK;SAVE]"..
 			"field[0.25,1;1.,1;id;id;"..id.."]"
-			minetest.show_formspec(owner, "robot_control_" .. name, form);
+			minetest.show_formspec(owner, "robot_control_" .. robot_name, form);
 			return
 	end,
 	
@@ -1871,9 +1871,9 @@ minetest.register_craftitem("basic_robot:control", {
 		
 		local ids = basic_robot.ids[owner]; if not ids then setupid(owner) end
 		local id = basic_robot.ids[owner].id or 1; -- read active id
-		local name = owner .. id
+		local robot_name = owner .. id
 		
-		local data = basic_robot.data[name];
+		local data = basic_robot.data[robot_name];
 		
 		if data and data.sandbox then
 			
@@ -1896,7 +1896,7 @@ minetest.register_craftitem("basic_robot:control", {
 		
 		if script == "" then
 			--display control form
-			minetest.show_formspec(owner, "robot_manual_control_" .. name, get_manual_control_form(name));
+			minetest.show_formspec(owner, "robot_manual_control_" .. robot_name, get_manual_control_form(robot_name));
 			return
 		end
 		
@@ -1911,7 +1911,7 @@ minetest.register_craftitem("basic_robot:control", {
 		end
 		script = preprocess_code(script,basic_robot.call_limit[data.authlevel+1]);
 		
-		setfenv( ScriptFunc, basic_robot.data[name].sandbox )
+		setfenv( ScriptFunc, basic_robot.data[robot_name].sandbox )
 		local Result, RuntimeError = pcall( ScriptFunc );
 		if RuntimeError then
 			minetest.chat_send_player(owner, "#remote control: run error " .. RuntimeError )
