@@ -39,10 +39,10 @@ function getSandboxEnv (robot_name)
 		left_up = 11, right_up = 12, forward_up = 13,  backward_up = 14
 		}
 	
-	local pname = string.sub(robot_name,1,-2)
-	if not basic_robot.data[pname] then basic_robot.data[pname] = {} end
+	local player_name = string.sub(robot_name,1,-2)
+	if not basic_robot.data[player_name] then basic_robot.data[player_name] = {} end
 	-- all robots by player share same rom now
-	if not basic_robot.data[pname].rom then basic_robot.data[pname].rom = {} end -- create rom if not yet existing
+	if not basic_robot.data[player_name].rom then basic_robot.data[player_name].rom = {} end -- create rom if not yet existing
 
 	local env = 
 	{
@@ -304,15 +304,15 @@ function getSandboxEnv (robot_name)
 		grab = function(target) return basic_robot.commands.grab(robot_name,target) end,
 		
 		
-		say = function(text, pname)
-			if not basic_robot.data[robot_name].quiet_mode and not pname then
+		say = function(text, player_name)
+			if not basic_robot.data[robot_name].quiet_mode and not player_name then
 				minetest.chat_send_all("<robot ".. robot_name .. "> " .. text)
 				if not basic_robot.data[robot_name].allow_spam then 
 					basic_robot.data[robot_name].quiet_mode=true
 				end
 			else
-				if not pname then pname = basic_robot.data[robot_name].owner end
-				minetest.chat_send_player(pname,"<robot ".. robot_name .. "> " .. text) -- send chat only to player pname
+				if not player_name then player_name = basic_robot.data[robot_name].owner end
+				minetest.chat_send_player(player_name,"<robot ".. robot_name .. "> " .. text) -- send chat only to player_name
 			end
 		end,
 		
@@ -346,7 +346,7 @@ function getSandboxEnv (robot_name)
 			set = function(text) -- replace bytecode in sandbox with this
 				local err = commands.setCode( robot_name, text ); -- compile code
 				if err then
-					minetest.chat_send_player(robot_name,"#ROBOT CODE COMPILATION ERROR : " .. err) 
+					minetest.chat_send_player(basic_robot.data[robot_name].owner,"#ROBOT CODE COMPILATION ERROR : " .. err) 
 					local obj = basic_robot.data[robot_name].obj;
 					obj:remove();
 					basic_robot.data[robot_name].obj = nil;
@@ -355,7 +355,7 @@ function getSandboxEnv (robot_name)
 			end,
 		},
 			
-		rom = basic_robot.data[pname].rom,
+		rom = basic_robot.data[player_name].rom,
 	
 		string = {
 			byte = string.byte,	char = string.char,
@@ -498,14 +498,14 @@ function getSandboxEnv (robot_name)
 				local err = check_code(script);
 				script = preprocess_code(script, basic_robot.call_limit[basic_robot.data[robot_name].authlevel+1]);
 				if err then 
-					minetest.chat_send_player(robot_name,"#ROBOT CODE CHECK ERROR : " .. err) 
+					minetest.chat_send_player(basic_robot.data[robot_name].owner, "#ROBOT CODE CHECK ERROR : " .. err) 
 					return 
 				end
 			end
 			
 			local ScriptFunc, CompileError = loadstring( script )
 			if CompileError then
-				minetest.chat_send_player(robot_name, "#code.run: compile error " .. CompileError )
+				minetest.chat_send_player(basic_robot.data[robot_name].owner, "#code.run: compile error " .. CompileError )
 				return false
 			end
 		
@@ -513,7 +513,7 @@ function getSandboxEnv (robot_name)
 		
 			local _, RuntimeError = pcall( ScriptFunc );
 			if RuntimeError then
-				minetest.chat_send_player(robot_name, "#code.run: run error " .. RuntimeError )
+				minetest.chat_send_player(basic_robot.data[robot_name].owner, "#code.run: run error " .. RuntimeError )
 				return false
 			end
 			return true
@@ -549,13 +549,13 @@ function getSandboxEnv (robot_name)
 			get_meta = function(pos) return commands.puzzle.get_meta(data,pos) end,
 			get_gametime = function() return minetest.get_gametime() end,
 			get_node_inv = function(pos) return commands.puzzle.get_node_inv(data,pos) end,
-			get_player = function(pname) return commands.puzzle.get_player(data,pname) end,
-			chat_send_player = function(pname, text)	minetest.chat_send_player(pname or "", text)	end,
-			get_player_inv = function(pname) return commands.puzzle.get_player_inv(data,pname) end,
+			get_player = function(player_name) return commands.puzzle.get_player(data,player_name) end,
+			chat_send_player = function(player_name, text)	minetest.chat_send_player(player_name or "", text)	end,
+			get_player_inv = function(player_name) return commands.puzzle.get_player_inv(data,player_name) end,
 			set_triggers = function(triggers) commands.puzzle.set_triggers(pdata,triggers) end, -- FIX THIS!
-			check_triggers = function(pname) 
-				local player = minetest.get_player_by_name(pname); if not player then return end
-				commands.puzzle.checkpos(pdata,player:get_pos(),pname) 
+			check_triggers = function(player_name) 
+				local player = minetest.get_player_by_name(player_name); if not player then return end
+				commands.puzzle.checkpos(pdata,player:get_pos(),player_name) 
 			end,
 			add_particle = function(def) minetest.add_particle(def) end,
 			count_objects = function(pos,radius) return #minetest.get_objects_inside_radius(pos, math.min(radius,5)) end,
@@ -1682,8 +1682,8 @@ function(player_name, message)
 	local hidden = false;
 	if string.sub(message,1,1) == "\\" then hidden = true; message = string.sub(message,2) end
 	local listeners = basic_robot.data.listening; -- which robots are listening?
-	for pname,_ in pairs(listeners) do
-		local data = basic_robot.data[pname];
+	for robot_name,_ in pairs(listeners) do
+		local data = basic_robot.data[robot_name];
 		data.listen_msg = message;
 		data.listen_speaker = player_name;
 	end
