@@ -871,31 +871,25 @@ end
 
 
 --pathfinding: find_path, walk_path
-basic_robot.commands.find_path = function(name,pos2)
-	local obj = basic_robot.data[name].obj;
-	local pos1 = obj:get_pos();
-	
-	if (pos1.x-pos2.x)^2+(pos1.y-pos2.y)^2+(pos1.z-pos2.z)^2> 50^2 then 
-		return nil,"2: distance too large" 
+basic_robot.commands.find_path = function(robot_name, pos2)
+	local obj = basic_robot.data[robot_name].obj
+	local pos1 = obj:get_pos()
+
+	if math.sqrt((pos1.x - pos2.x) ^ 2 + (pos1.y - pos2.y) ^ 2 + (pos1.z - pos2.z) ^ 2) > 20 then
+		return nil, "2: distance too large"
 	end
-	check_operations(name,6,true)
-	local data = basic_robot.data[name]
-	energy = data.menergy or 0; -- machine energy
-	if energy<1 then 
-		return nil,"1: not enough energy" 
+
+	check_operations(robot_name,6,true)
+	local data = basic_robot.data[robot_name]
+	energy = data.menergy or 0 -- machine energy
+	if energy<1 then
+		return nil, "1: not enough energy"
 	end
 	data.menergy = energy - 1
 	--{current pathnode, path}
-	
-	--start position is very sensitive, noninteger coordinates do not seem to work
-	local round = math.floor 
-	pos1.x = pos1.x>0 and round(pos1.x+0.5) or -round(-pos1.x+0.5)
-	pos1.y = pos1.y>0 and round(pos1.y+0.5) or -round(-pos1.y+0.5)
-	pos1.z = pos1.z>0 and round(pos1.z+0.5) or -round(-pos1.z+0.5)
-	
-	--TODO: tweak parameters, minetest find_path seems sometimes buggy
-	local path = minetest.find_path(pos1,pos2,10,1,1,"Dijkstra"); -- pos1,pos2, search_distance, max_jump, max_drop
-	basic_robot.data[name].pathdata = {1,path}
+
+	local path = minetest.find_path(pos1, pos2, 10, 1, 1, "A*")
+	basic_robot.data[robot_name].pathdata = { 1, path }
 
 	if path then return #path else return nil end -- return length of found path or nil
 end
