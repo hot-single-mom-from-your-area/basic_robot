@@ -1728,7 +1728,7 @@ minetest.register_on_player_receive_fields(
 
 				local code = table.concat(lines, "\n")
 				meta:set_string("code", code)
-				basic_robot.editor[name].lines = {}
+				basic_robot.editor[player_name].lines = {}
 				robot_spawner_update_form(pos, 0)
 			end
 			return
