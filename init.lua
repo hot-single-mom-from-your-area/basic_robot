@@ -1831,7 +1831,7 @@ minetest.register_on_player_receive_fields(
 					data.text_len = #data.text
 					data.description = fields.title or ""
 					data.page = 1
-					data.owner = data.owner or ""
+					data.owner = data.owner or player:get_player_name()
 					local lpp = 14
 					data.page_max = math.ceil((#text:gsub("[^\n]", "") + 1) / lpp)
 
