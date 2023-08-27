@@ -785,6 +785,9 @@ basic_robot.commands.keyboard = {
 		if dist > 10 then return false end
 		if minetest.is_protected(pos, owner) then return false end -- with fast protect checks this shouldnt be problem!
 
+		local target_node = minetest.get_node(pos).name
+		if not target_node:match("^basic_robot:button") and target_node ~= "air" then return false end
+
 		local nodename
 		if type == 0 then
 			nodename = "air"
