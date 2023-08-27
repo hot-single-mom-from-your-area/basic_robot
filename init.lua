@@ -272,7 +272,7 @@ function getSandboxEnv(robot_name)
 
 		machine = { -- adds technic like functionality to robots: power generation, smelting, grinding, compressing
 			energy = function() return basic_robot.data[robot_name].menergy or 0 end,
-			generate_power = function(input, amount) return commands.machine.generate_power(robot_name, input, amount) end,
+			generate_power = function(input) return commands.machine.generate_power(robot_name, input) end,
 			smelt = function(input, power) return commands.machine.smelt(robot_name, input, power) end,
 			grind = function(input) return commands.machine.grind(robot_name, input) end,
 			compress = function(input) return commands.machine.compress(robot_name, input) end,

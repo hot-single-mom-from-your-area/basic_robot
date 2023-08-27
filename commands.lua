@@ -969,6 +969,34 @@ basic_robot.technic = { -- data cache
 	},
 }
 
+local get_machine_level = function(inv)
+	--seems like there is no convenient way of finding how much specific items in the inventory...
+	local list = {}
+
+	for i = 1, 32 do
+		local item = inv:get_stack("main", i):to_string()
+
+		if item ~= "" then
+			local itemname, amount = item:match("(%S+) (%d+)")
+			if not itemname then
+				itemname = item
+				amount = 1
+			end
+
+			if list[itemname] then
+				list[itemname] = tonumber(list[itemname]) + tonumber(amount)
+			else
+				list[itemname] = tonumber(amount)
+			end
+		end
+	end
+
+	if list["default:diamondblock"] and list["default:mese"] and list["default:goldblock"] then
+		return math.min(list["default:diamondblock"], list["default:mese"], list["default:goldblock"])
+	end
+	return 0
+end
+
 local chk_machine_level = function(inv, level) -- does machine have upgrade to be classified with at least "level"
 	if level < 1 then level = 1 end
 	local upg = { "default:diamondblock", "default:mese", "default:goldblock" }
@@ -980,55 +1008,67 @@ end
 
 
 basic_robot.commands.machine = {
-
 	-- convert fuel into energy
-	generate_power = function(robot_name, input, amount) -- fuel used, if no fuel then amount specifies how much energy builtin generator should produce
+	generate_power = function(robot_name, input) -- fuel used, if no fuel then amount specifies how much energy builtin generator should produce
 		check_operations(robot_name, 6, true)
 
-		if amount and amount > 0 and amount < 10 ^ 6 then -- attempt to generate power from builtin generator
-			local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
-			local inv = minetest.get_meta(pos):get_inventory()
-			local level = amount *
-				40 -- to generate 1 unit ( coal lump per second ) we need at least upgrade 40
-			if not chk_machine_level(inv, level) then
-				error("generate_power : tried to generate " ..
-					amount .. " energy requires upgrade level at least " .. level .. " (blocks of mese, diamond, gold )")
-				return
+		local data = basic_robot.data[robot_name]
+		local energy = data.menergy or 0
+		local spawner_pos = basic_robot.data[robot_name].spawnpos
+		local meta = minetest.get_meta(spawner_pos)
+		local inv = meta:get_inventory()
+
+		if not input then
+			local level = get_machine_level(inv) / 40
+			if level == 0 then
+				return nil,
+					"generator 0: attempt to generate power with built-in generator failed, make sure you have gold, mese and diamond blocks in the robot inventory"
 			end
-			local data = basic_robot.data[robot_name]
-			local energy = (data.menergy or 0) + amount
+
+			energy = energy + level
 			data.menergy = energy
 			return energy
 		end
 
-		local energy = 0 -- can only do one step at a run time
-
-		if string.find(input, " ") then return nil, "1: can convert only one item at once" end
-
-		local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
-		local inv = minetest.get_meta(pos):get_inventory()
 		local stack = ItemStack(input)
-		if not inv:contains_item("main", stack) then return nil, "2: no input material" end
-
-		-- read energy value of input ( coal lump = 1)
-		local add_energy = basic_robot.technic.fuels[input]
-		if not add_energy then -- lookup fuel value
-			local fueladd, afterfuel = minetest.get_craft_result({ method = "fuel", width = 1, items = { stack } })
-			if fueladd.time > 0 then
-				add_energy = fueladd.time / 40 -- fix by kurik
-			else
-				return nil, "3: material can not be used as a fuel"
-			end
-			if add_energy > 0 then basic_robot.technic.fuels[input] = add_energy end
+		if not inv:contains_item("main", stack) then
+			return nil, "generator 2: " .. input .. " not found"
 		end
 
-		inv:remove_item("main", stack)
+		local fuel = basic_robot.technic.fuels[input]
+		local fuel_energy = 0
+		local fuel_replacement = nil
+		if fuel then
+			fuel_energy = fuel.energy
+			fuel_replacement = fuel.replacement
+		else
+			local fueladd, afterfuel = minetest.get_craft_result({ method = "fuel", width = 1, items = { stack } })
+			if fueladd.time > 0 then
+				-- 1 energy = 1 coal lump = 40 fuel time
+				fuel_energy = fueladd.time / 40 -- fix by kurik
+				fuel_replacement = afterfuel.items[1]
+				-- Cache the result for next time
+				basic_robot.technic.fuels[input] = { energy = fuel_energy, replacement = fuel_replacement }
+			else
+				return nil, "generator 3: " .. input .. " can not be used as fuel"
+			end
+		end
 
-		--add energy
-		local data = basic_robot.data[robot_name]
-		energy = data.menergy or 0
-		energy = energy + add_energy
+		inv:remove_item("main", stack);
+
+		energy = energy + fuel_energy
 		data.menergy = energy
+		-- Put replacements, if any, in inventory or drop them on the spawner
+		-- (For example, consuming a lava bucket yields power _and_ an empty bucket.)
+		if fuel_replacement ~= nil then
+			local replacement_stack = ItemStack(fuel_replacement)
+			local leftover = inv:add_item("main", replacement_stack)
+			if not leftover:is_empty() then -- no room to add it
+				local above = { x = pos.x, y = pos.y + 1, z = pos.z }
+				local drop_pos = minetest.find_node_near(above, 1, { "air" }) or above
+				minetest.item_drop(replacement_stack, nil, drop_pos)
+			end
+		end
 		return energy
 	end,
 	-- smelting
