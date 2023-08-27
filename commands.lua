@@ -99,22 +99,16 @@ basic_robot.commands.move = function(robot_name, dir)
 	local obj = basic_robot.data[robot_name].obj
 	local pos = pos_in_dir(obj, dir)
 
-	-- can move through walkable nodes
-	if minetest.registered_nodes[minetest.get_node(pos).name].walkable then return end
-	-- up; no levitation!
-	if minetest.get_node({ x = pos.x, y = pos.y - 1, z = pos.z }).name == "air" and
+	-- can't move through solid nodes
+	if minetest.registered_nodes[minetest.get_node(pos).name].walkable then return false end
+	-- no levitation!
+	if minetest.get_node(pos).name == "air" and
+		minetest.get_node({ x = pos.x, y = pos.y - 1, z = pos.z }).name == "air" and
 		minetest.get_node({ x = pos.x, y = pos.y - 2, z = pos.z }).name == "air" then
 		return false
 	end
 
 	obj:move_to(pos, true)
-
-	-- sit and stand up for model - doesnt work for overwriten obj export
-	-- if dir == 5 then-- up
-	-- obj:set_animation({x=0,y=0})
-	-- elseif dir == 6 then -- down
-	-- obj:set_animation({x=81,y=160})
-	-- end
 
 	return true
 end
