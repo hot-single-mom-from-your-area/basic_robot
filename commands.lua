@@ -1031,53 +1031,59 @@ basic_robot.commands.machine = {
 		data.menergy = energy
 		return energy
 	end,
-
 	-- smelting
-	smelt = function(robot_name, input, amount) -- input material, amount of energy used for smelt
-		local energy = 0               -- can only do one step at a run time
+	smelt = function(robot_name, input, power) -- input material, amount of energy used for smelt
+		-- can only do one step at a run time
 		check_operations(robot_name, 6, true)
 
-		if string.find(input, " ") then return nil, "0: only one item per smelt" end
+		if not input then
+			return nil, "smelt 0: input item not specified"
+		else
+			input = input:gsub("(%S+).*", "%1")
+		end
 
-		local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
-		local meta = minetest.get_meta(pos)
+		local spawner_pos = basic_robot.data[robot_name].spawnpos
+		local meta = minetest.get_meta(spawner_pos)
 		local inv = meta:get_inventory()
 
 		--read robot energy
 		local cost = 1 / 40
 		local smelttimeboost = 1
-		local level = 1
-		if amount and amount > 0 then
-			level = amount * 10 -- 10 level required for 1 of amount
+		if power and power > 0 then
+			local level = power * 10 -- 10 level required for 1 of power
 			if not chk_machine_level(inv, level) then
-				error("3 smelting: need at least level " .. level .. " upgrade for required power " .. amount)
-				return
+				return nil, "smelt 4: robot upgrade level " .. level .. " is needed"
 			end
-			cost = cost * (1 + amount)
-			smelttimeboost = smelttimeboost + amount -- double speed with amount 1
+			cost = cost * (1 + power)
+			smelttimeboost = smelttimeboost + power -- double speed with power 1
 		end
 
 		local data = basic_robot.data[robot_name]
-		energy = data.menergy or 0 -- machine energy
-		if energy < cost then return nil, "1: not enough energy" end
+		local energy = data.menergy or 0 -- machine energy
+		if energy < cost then return nil, "smelt 1: not enough energy, " .. cost .. " energy required" end
 
 		local stack = ItemStack(input)
-		if not inv:contains_item("main", stack) then return nil, "2: no input materials" end
+		if not inv:contains_item("main", stack) then return nil, "smelt 2: " .. input .. " not found" end
 
+		--current smelting progress
 		local src_time = (data.src_time or 0) + smelttimeboost
 
 		-- get smelting data
 		local smelts = basic_robot.technic.smelts[input]
 		if not smelts then
-			local cooked, aftercooked
-			cooked, aftercooked = minetest.get_craft_result({ method = "cooking", width = 1, items = { stack } })
+			local cooked, aftercooked = minetest.get_craft_result({
+				method = "cooking",
+				width = 1,
+				items = { stack }
+			})
 			if cooked.time > 0 then
 				basic_robot.technic.smelts[input] = { cooked.time, cooked.item, aftercooked.items[1] }
 				smelts = basic_robot.technic.smelts[input]
 			else
-				return nil, "3: material can not be smelted"
+				return nil, "smelt 3: " .. input .. " can not be smelted"
 			end
 		end
+
 		local cooktime = smelts[1]
 		local cookeditem = smelts[2]
 		local aftercookeditem = smelts[3]
@@ -1086,8 +1092,8 @@ basic_robot.commands.machine = {
 		data.menergy = energy - cost
 		if src_time >= cooktime then
 			inv:remove_item("main", stack)
-			inv:add_item("main", ItemStack(aftercookeditem))
 			inv:add_item("main", ItemStack(cookeditem))
+			inv:add_item("main", ItemStack(aftercookeditem))
 			data.src_time = 0
 			return true
 		else
