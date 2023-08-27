@@ -789,12 +789,11 @@ basic_robot.commands.keyboard = {
 
 basic_robot.commands.craftcache = {};
 
-basic_robot.commands.craft = function(item, mode, idx,amount, name)
-	amount = amount and tonumber(amount) or 1;
-	if amount<0 then amount = 1 end
+basic_robot.commands.craft = function(item, mode, idx, amount, name)
 	if not item then return false end
+	amount = amount and math.floor(tonumber(amount)) or 1
+	amount = math.max(amount, 1)
 
-	
 	local cache = basic_robot.commands.craftcache[name];
 	if not cache then basic_robot.commands.craftcache[name] = {}; cache = basic_robot.commands.craftcache[name] end
 	local itemlist = {}; local output = "";
@@ -865,7 +864,9 @@ basic_robot.commands.craft = function(item, mode, idx,amount, name)
 		inv:remove_item("main",stack);
 	end
 	
-	inv:add_item("main",ItemStack(output))
+	local result = ItemStack(output)
+	result:set_count(output:get_count() * amount)
+	inv:add_item("main", result)
 	return true
 end
 
