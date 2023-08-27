@@ -21,11 +21,9 @@ basic_robot.plant_table = {
 	["farming:seed_wheat"] = "farming:wheat_1"
 }
 
-
 local function tick(pos) -- needed for plants to start growing: minetest 0.4.14 farming
 	minetest.get_node_timer(pos):start(math.random(166, 286))
 end
-
 
 local pi = math.pi
 
@@ -93,7 +91,6 @@ local check_operations = function(robot_name, amount, quit)
 	end
 end
 
-
 basic_robot.commands.move = function(robot_name, dir)
 	check_operations(robot_name, 2, true)
 	local obj = basic_robot.data[robot_name].obj
@@ -115,14 +112,12 @@ end
 
 basic_robot.commands.turn = function(robot_name, angle)
 	local obj = basic_robot.data[robot_name].obj
-	local yaw
+	local yaw = obj:get_yaw()
 	-- more precise turns by 1 degree resolution
 	local mult = math.pi / 180
-	local yaw = obj:get_yaw()
 	yaw = math.floor((yaw + angle) / mult + 0.5) * mult
 	obj:set_yaw(yaw)
 end
-
 
 basic_robot.digcosts = { -- 1 energy = 1 coal
 	["default:stone"] = 1 / 25,
@@ -130,9 +125,7 @@ basic_robot.digcosts = { -- 1 energy = 1 coal
 	["default:cloud"] = 10 ^ 9,
 }
 
-
 basic_robot.commands.dig = function(robot_name, dir)
-	local energy = 0
 	check_operations(robot_name, 6, true)
 
 	local obj = basic_robot.data[robot_name].obj
@@ -160,7 +153,6 @@ basic_robot.commands.dig = function(robot_name, dir)
 		end
 	end
 
-
 	if not inv then return end
 	--inv:add_item("main",ItemStack( nodename ))
 
@@ -179,7 +171,6 @@ basic_robot.commands.dig = function(robot_name, dir)
 	return true
 end
 
-
 basic_robot.commands.insert_item = function(robot_name, item, inventory, dir)
 	check_operations(robot_name, 2, true)
 	local obj = basic_robot.data[robot_name].obj
@@ -193,9 +184,8 @@ basic_robot.commands.insert_item = function(robot_name, item, inventory, dir)
 	local meta = minetest.get_meta(pos)
 	local tmeta = minetest.get_meta(tpos)
 
-	local inv = minetest.get_meta(pos):get_inventory()
-
-	local tinv = minetest.get_meta(tpos):get_inventory()
+	local inv = meta:get_inventory()
+	local tinv = tmeta:get_inventory()
 
 	if not inventory then inventory = "main" end
 	--if not inv then return end
@@ -217,7 +207,6 @@ basic_robot.commands.take_item = function(robot_name, item, inventory, dir)
 	local luaent = obj:get_luaentity()
 	if minetest.is_protected(tpos, luaent.owner) then return false end
 
-
 	local pos = basic_robot.data[robot_name].spawnpos                                    -- position of spawner block
 
 	if basic_robot.bad_inventory_blocks[minetest.get_node(tpos).name] then return false end -- dont allow take from
@@ -225,8 +214,8 @@ basic_robot.commands.take_item = function(robot_name, item, inventory, dir)
 	local meta = minetest.get_meta(pos)
 	local tmeta = minetest.get_meta(tpos)
 
-	local inv = minetest.get_meta(pos):get_inventory()
-	local tinv = minetest.get_meta(tpos):get_inventory()
+	local inv = meta:get_inventory()
+	local tinv = tmeta:get_inventory()
 
 	if not inventory then inventory = "main" end
 	--if not inv then return end
@@ -270,14 +259,12 @@ basic_robot.commands.check_inventory = function(robot_name, itemname, inventory,
 	return tinv:contains_item(inventory, stack)
 end
 
-
 basic_robot.no_teleport_table = {
 	["itemframes:item"] = true,
 	["signs:text"] = true,
 	["basic_robot:robot"] = true,
 	["robot"] = true,
 }
-
 
 basic_robot.commands.pickup = function(r, robot_name)
 	if not r or math.abs(r) > 8 then r = 8 end
@@ -286,7 +273,7 @@ basic_robot.commands.pickup = function(r, robot_name)
 	local pos = basic_robot.data[robot_name].obj:get_pos()
 	local spos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 	local meta = minetest.get_meta(spos)
-	local inv = minetest.get_meta(spos):get_inventory()
+	local inv = meta:get_inventory()
 	local picklist = {}
 
 	for _, obj in pairs(minetest.get_objects_inside_radius({ x = pos.x, y = pos.y, z = pos.z }, r)) do
@@ -308,7 +295,6 @@ basic_robot.commands.pickup = function(r, robot_name)
 	if not picklist[1] then return nil end
 	return picklist
 end
-
 
 basic_robot.commands.read_node = function(robot_name, dir)
 	local obj = basic_robot.data[robot_name].obj
@@ -428,15 +414,10 @@ end
 
 --local minetest_version = minetest.get_version().string
 basic_robot.commands.read_book = function(itemstack) -- itemstack should contain book
-	local data
-	--if minetest_version == "0.4.16" then
-	data = itemstack:get_meta():to_table().fields              -- 0.4.16
+	local data = itemstack:get_meta():to_table().fields
 	if data and data.text then
 		data.text = data.text:gsub(string.char(13), string.char(10)) --for unknown reason books sometime? convert \n (10) to CR (13)
 	end
-	-- else
-	-- local data = minetest.deserialize(itemstack:get_metadata()) -- pre 0.4.16
-	-- end
 
 	if data then
 		return data.title, data.text
@@ -460,13 +441,10 @@ basic_robot.commands.write_book = function(player_name, title, text) -- returns 
 	data.page_max = math.ceil((#data.text:gsub("[^\n]", "") + 1) / lpp)
 	--data.owner = basic_robot.data[robot_name].owner --doesn't work for some reason
 	data.owner = player_name
-	--local data_str = minetest.serialize(data) -- pre 0.4.16
-	--new_stack:set_metadata(data_str)
-	new_stack:get_meta():from_table({ fields = data }) -- 0.4.16
+	new_stack:get_meta():from_table({ fields = data })
 
 	return new_stack
 end
-
 
 basic_robot.give_drops = function(nodename, inv) -- gives apropriate drops when node is dug
 	local table = minetest.registered_items[nodename]
@@ -500,12 +478,9 @@ basic_robot.give_drops = function(nodename, inv) -- gives apropriate drops when 
 	end
 end
 
-
 local render_text = function(text, linesize)
-	local count = math.floor(string.len(text) / linesize) + 1
 	local width = 18
 	local height = 24
-	local tex = ""
 	local ret = {}
 	local y = 0
 	local x = 0
@@ -518,7 +493,6 @@ local render_text = function(text, linesize)
 		else
 			c = string.format("%03d", cb) .. ".png"
 			ret[#ret + 1] = ":" .. (x * width) .. "," .. (y * height) .. "=" .. c
-			--tex = tex .. ":" .. (x*width) .. "," .. (y*height) .. "=" .. c
 			if x == linesize - 1 then
 				y = y + 1
 				x = 0
@@ -528,11 +502,9 @@ local render_text = function(text, linesize)
 		end
 	end
 	local background = "(black_screen.png^[resize:" .. (linesize * width) .. "x" .. (linesize * height) .. ")"
-	--tex =  "([combine:"..(linesize*width).."x"..(linesize*height)..tex..")"
 	return background .. "^" .. "([combine:" .. (linesize * width) .. "x" .. (linesize * height) ..
 		table.concat(ret, "") .. ")"
 end
-
 
 basic_robot.commands.display_text = function(obj, text, linesize, size)
 	if not linesize or linesize < 1 then linesize = 20 elseif linesize > 40 then linesize = 40 end
@@ -545,7 +517,6 @@ basic_robot.commands.display_text = function(obj, text, linesize, size)
 	if string.len(tex) <= 1600 then
 		obj:set_properties({
 			textures = { "topface.png", "legs.png", tex, "face-back.png", "left-hand.png", "right-hand.png" },
-			--textures={"arrow.png","basic_machine_side.png",tex,"basic_machine_side.png","basic_machine_side.png","basic_machine_side.png"},
 			visual_size = { x = size, y = size }
 		})
 	else
@@ -663,7 +634,6 @@ end
 
 local register_robot_button_char = function(number, type)
 	local texname = "robochars.png^[sheet:16x16:" .. number % 16 .. "," .. math.floor(number / 16)
-	--	local texname = string.format("%03d",number).. ".png"
 	minetest.register_node("basic_robot:button_" .. number,
 		{
 			description = "robot button",
@@ -696,14 +666,13 @@ end
 1 — yellow 	9 — dark green
 2 — orange 	10 — brown
 3 — red 	11 — tan
-4 — magenta 	12 — light grey
+4 — magenta 12 — light grey
 5 — purple 	13 — medium grey
 6 — blue 	14 — dark grey
 7 — cyan 	15 — black
 --]]
 
 --16-color palette from macintosh II, 1987
-
 register_robot_button("FF", "FF", "FF", "white", 1)        -- white
 register_robot_button("FC", "F4", "00", "yellow", 2)       -- yellow
 register_robot_button("FF", "64", "00", "orange", 3)       -- orange
@@ -720,17 +689,6 @@ register_robot_button("C1", "C1", "C1", "light_grey", 13)  -- light_grey
 register_robot_button("81", "81", "81", "medium_grey", 14) -- medium_grey
 register_robot_button("3E", "3E", "3E", "dark_grey", 15)   -- dark_grey
 register_robot_button("00", "00", "00", "black", 16)       -- black
-
-
-
---[[ -- old colors
-register_robot_button("FF","FF","FF",1)
-register_robot_button("80","80","80",2)
-register_robot_button("FF","80","80",3)
-register_robot_button("80","FF","80",4)
-register_robot_button("80","80","FF",5)
-register_robot_button("FF","FF","80",6)
---]]
 
 for i = 0, 9 do register_robot_button_number(i, i + 17) end -- all buttons shift by 10 from old version!
 for i = 0, 255 do register_robot_button_char(i, i + 27) end
@@ -751,8 +709,6 @@ register_robot_button_custom(293, "puzzle_platform")
 
 register_robot_button_custom(294, "puzzle_giver")
 register_robot_button_custom(295, "puzzle_checker")
-
-
 
 -- interactive button for robot: place robot on top of protector to intercept events
 
@@ -866,13 +822,7 @@ basic_robot.commands.craft = function(item, mode, idx, amount, robot_name)
 		end
 	end
 
-	--minetest.chat_send_all(item)
-	--minetest.chat_send_all(dump(itemlist))
-
 	if mode == 1 then return itemlist end
-
-	-- check if all items from itemlist..
-	-- craft item
 
 	local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 	local inv = minetest.get_meta(pos):get_inventory()
@@ -980,7 +930,6 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 	basic_robot.data[robot_name].form_sender = player:get_player_name() or ""
 end)
 
-
 -- ROBOT TECHNIC
 -- amount parameter in generate_power, smelt,... is determined by upgrade level
 -- it specifies how much energy will be generated :
@@ -999,9 +948,7 @@ basic_robot.technic = { -- data cache
 		["default:ice"] = { 1, "default:snow 4", 1 },
 		["darkage:silt_lump"] = { 1, "darkage:chalk_powder", 1 },
 		["default:diamond"] = { 16, "basic_machines:diamond_dust_00 2", 1 },
-		["default:ice"] = { 1, "default:snow", 1 },
 		["moreores:tin_lump"] = { 4, "basic_machines:tin_dust_00 2", 1 },
-		["default:obsidian_shard"] = { 199, "default:lava_source", 1 },
 		["default:mese_crystal"] = { 8, "basic_machines:mese_dust_00 2", 1 },
 		["moreores:mithril_ingot"] = { 16, "basic_machines:mithril_dust_33 2", 1 },
 		["moreores:silver_ingot"] = { 5, "basic_machines:silver_dust_33 2", 1 },
@@ -1056,7 +1003,6 @@ basic_robot.commands.machine = {
 
 		local energy = 0 -- can only do one step at a run time
 
-
 		if string.find(input, " ") then return nil, "1: can convert only one item at once" end
 
 		local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
@@ -1095,7 +1041,7 @@ basic_robot.commands.machine = {
 
 		local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 		local meta = minetest.get_meta(pos)
-		local inv = minetest.get_meta(pos):get_inventory()
+		local inv = meta:get_inventory()
 
 		--read robot energy
 		local cost = 1 / 40
@@ -1161,7 +1107,7 @@ basic_robot.commands.machine = {
 
 		local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 		local meta = minetest.get_meta(pos)
-		local inv = minetest.get_meta(pos):get_inventory()
+		local inv = meta:get_inventory()
 
 		--level requirement
 		local level = math.floor((cost - 1) / 3)
@@ -1184,7 +1130,6 @@ basic_robot.commands.machine = {
 		return true
 	end,
 
-
 	-- compress
 	compress = function(robot_name, input)
 		--[in] ={fuel cost, out, quantity of material required for processing}
@@ -1196,7 +1141,7 @@ basic_robot.commands.machine = {
 
 		local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 		local meta = minetest.get_meta(pos)
-		local inv = minetest.get_meta(pos):get_inventory()
+		local inv = meta:get_inventory()
 
 		--level requirement
 		local level = math.floor(cost / 2)
@@ -1263,8 +1208,7 @@ basic_robot.commands.machine = {
 		local pos = pos_in_dir(obj, dir)
 
 		local nodename = minetest.get_node(pos).name
-		local basename, stage
-		basename, stage = string.match(nodename, "%w+:(%w+)_(%d+)") -- modname:basename_stage
+		local basename, stage = string.match(nodename, "%w+:(%w+)_(%d+)") -- modname:basename_stage
 		if not basename then return end
 
 		local spos = basic_robot.data[robot_name].spawnpos -- position of spawner block
@@ -1311,14 +1255,6 @@ local scramble = function(input, password, sgn) -- permutes text randomly, nice 
 	end
 	return table.concat(out, "")
 end
-
-local scramble_test = function()
-	local text = "testing scrambling 1 2 3"
-	local enc = scramble(text, 10, 1) -- scramble
-	local dec = scramble(enc, 10, -1) -- descramble
-	say("SCRAMBLED--> " .. enc .. " DESCRAMBLED--> " .. dec)
-end
---scramble_test()
 
 local get_hash = function(s, p) -- basic modular hash, first convert string into 4*8=32 bit int
 	if not s then return end
@@ -1399,15 +1335,6 @@ local decrypt = function(input, password)
 	local scrambleseed = get_hash(_G.minetest.get_password_hash("", password), 10 ^ 30)
 	input = scramble(input, scrambleseed, -1) -- descramble
 	return hex2ascii(encrypt_(input, password, -1))
-end
-
--- just test
-local encrypt_test = function()
-	local text = "testing encryption 1 2 3"
-	local password = "hello encryptions"
-	local enc = encrypt(text, password)
-	local dec = decrypt(enc, password)
-	say("INPUT: " .. text .. " ENC: " .. enc .. " DEC: " .. dec)
 end
 
 basic_robot.commands.crypto = { encrypt = encrypt, decrypt = decrypt, scramble = scramble, basic_hash = get_hash }
@@ -1542,7 +1469,6 @@ local cmd_checkpos = function(data, pos, player_name) -- does the position pos t
 				local id = tdata[i]       -- trigger id
 				if trigger.onetime and gdata[id] then -- trigger already "triggered"
 				else
-					--say("trigger " .. id)
 					trigger.action(player_name, id)
 				end
 			end

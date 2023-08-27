@@ -27,8 +27,6 @@ dofile(minetest.get_modpath("basic_robot") .. "/commands.lua")
 
 local check_code, preprocess_code, is_inside_string
 
-
-
 -- SANDBOX for running lua code isolated and safely
 function getSandboxEnv(robot_name)
 	local authlevel = basic_robot.data[robot_name].authlevel or 0
@@ -174,7 +172,6 @@ function getSandboxEnv(robot_name)
 				return sender, mail
 			end,
 
-
 			send_mail = function(target, mail)
 				if not basic_robot.data[target] then return false end
 				basic_robot.data[target].listen_mail = mail
@@ -289,7 +286,6 @@ function getSandboxEnv(robot_name)
 			basic_hash = commands.crypto.basic_hash,
 		},
 
-
 		keyboard = {
 			get = function() return commands.keyboard.get(robot_name) end,
 			set = function(pos, type) return commands.keyboard.set(basic_robot.data[robot_name], pos, type) end,
@@ -345,7 +341,6 @@ function getSandboxEnv(robot_name)
 
 		grab = function(target) return basic_robot.commands.grab(robot_name, target) end,
 
-
 		say = function(text, player_name)
 			if not basic_robot.data[robot_name].quiet_mode and not player_name then
 				minetest.chat_send_all("<robot " .. robot_name .. "> " .. text)
@@ -357,7 +352,6 @@ function getSandboxEnv(robot_name)
 				minetest.chat_send_player(player_name, "<robot " .. robot_name .. "> " .. text) -- send chat only to player_name
 			end
 		end,
-
 
 		book = {
 			read = function(i)
@@ -659,9 +653,6 @@ function getSandboxEnv(robot_name)
 end
 
 -- code checker
--- bugfixes:
--- player Midskip found problem with code checking, fixed
-
 
 check_code = function(code)
 	--"while ", "for ", "do ","goto ",
@@ -1029,8 +1020,6 @@ code_edit_form = function(pos, player_name)
 	return form
 end
 
-
-
 local function init_robot(obj, resetSandbox)
 	local self = obj:get_luaentity()
 	local robot_name = self.name
@@ -1060,9 +1049,6 @@ minetest.register_entity("basic_robot:robot", {
 	timer = 0,
 	timestep = 1, -- run every 1 second
 	spawnpos = nil,
-	--visual="mesh",
-	--mesh = "char.obj", --this is good: aligned and rotated in blender - but how to move nametag up? now is stuck in head
-	--textures={"character.png"},
 
 	visual = "cube",
 	textures = { "topface.png", "legs.png", "left-hand.png", "right-hand.png", "face.png", "face-back.png" },
@@ -1080,7 +1066,6 @@ minetest.register_entity("basic_robot:robot", {
 			local data = basic_robot.data[self.name]
 
 			if not data then
-				--minetest.chat_send_all("#ROBOT INIT:  error. spawn robot again.")
 				self.object:remove()
 				return
 			end
@@ -1140,7 +1125,6 @@ minetest.register_entity("basic_robot:robot", {
 				if string.sub(err, -5) ~= "abort" and not cor then
 					minetest.chat_send_player(self.owner, "#ROBOT ERROR : " .. err)
 				end
-
 
 				self.running = 0 -- stop execution
 
@@ -1300,7 +1284,6 @@ local spawn_robot = function(pos, node, ttl)
 		return
 	end -- end of entityless robot code
 
-
 	-- if robot entity already exists refresh it
 	if basic_robot.data[robot_name] and basic_robot.data[robot_name].obj then
 		minetest.chat_send_player(owner, "#ROBOT: " .. robot_name .. " already active, removing ")
@@ -1336,7 +1319,6 @@ local spawn_robot = function(pos, node, ttl)
 	data.owner    = owner
 	data.spawnpos = { x = pos.x, y = pos.y - 1, z = pos.z }
 
-
 	init_robot(obj, true) -- set properties, resetSandbox = true
 
 	local self = obj:get_luaentity()
@@ -1352,7 +1334,6 @@ local spawn_robot = function(pos, node, ttl)
 	self.running = 1
 end
 
-
 --admin robot that starts automatically after server start
 minetest.after(10, function()
 	local admin_bot_pos = basic_robot.admin_bot_pos
@@ -1361,7 +1342,6 @@ minetest.after(10, function()
 	print("[BASIC_ROBOT] admin robot at " ..
 		admin_bot_pos.x .. " " .. admin_bot_pos.y .. " " .. admin_bot_pos.z .. " started.")
 end)
-
 
 local despawn_robot = function(pos)
 	local meta = minetest.get_meta(pos)
@@ -1408,7 +1388,6 @@ local despawn_robot = function(pos)
 	local objects = minetest.get_objects_inside_radius(pos, 0.9)
 	for _, obj in pairs(objects) do if not obj:is_player() then obj:remove() end end
 end
-
 
 --process forms from spawner
 local on_receive_robot_form = function(pos, formname, fields, sender)
@@ -1567,8 +1546,7 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 				book_background = book_background .. "image[" .. x .. "," .. y .. ";1,1;default_bookshelf_slot.png]"
 
 				local itemstack = inv:get_stack("library", i)
-				local data = itemstack:get_meta():to_table().fields -- 0.4.16
-				--local data = minetest.deserialize(itemstack:get_metadata()) -- pre 0.4.16
+				local data = itemstack:get_meta():to_table().fields
 				if data then
 					text = string.sub(data.title or "", 1, 32)
 				else
@@ -1604,7 +1582,6 @@ local on_receive_robot_form = function(pos, formname, fields, sender)
 end
 
 -- handle form: when rightclicking robot entity, remote controller
-
 
 minetest.register_on_player_receive_fields(
 	function(player, formname, fields)
@@ -1653,7 +1630,6 @@ minetest.register_on_player_receive_fields(
 			end
 
 			if fields.OK and fields.libpos then
-				local sender = player:get_player_name()
 				local meta = minetest.get_meta(pos)
 				meta:set_string("libpos", fields.libpos)
 				return
@@ -1669,20 +1645,16 @@ minetest.register_on_player_receive_fields(
 		local robot_formname = "robot_worker_"
 		if string.find(formname, robot_formname) then
 			local robot_name = string.sub(formname, string.len(robot_formname) + 1)
-			local sender = player:get_player_name() --minetest.get_player_by_name(name)
+			local sender = player:get_player_name()
 
 			if basic_robot.data[robot_name] and basic_robot.data[robot_name].spawnpos then
 				local pos = basic_robot.data[robot_name].spawnpos
 
-				local privs = minetest.get_player_privs(player:get_player_name())
-				local is_protected = minetest.is_protected(pos, player:get_player_name())
+				local privs = minetest.get_player_privs(sender)
+				local is_protected = minetest.is_protected(pos, sender)
 				if is_protected and not privs.privs then return 0 end
 
-				-- if not sender then
 				on_receive_robot_form(pos, formname, fields, player)
-				-- else
-				-- on_receive_robot_form(pos,formname, fields, sender)
-				-- end
 
 				return
 			end
@@ -1690,7 +1662,6 @@ minetest.register_on_player_receive_fields(
 
 		local robot_formname = "robot_control_"
 		if string.find(formname, robot_formname) then
-			local robot_name = string.sub(formname, string.len(robot_formname) + 1)
 			if fields.OK and fields.code then
 				local item = player:get_wielded_item() --set_wielded_item(item)
 				if string.len(fields.code) > 1000 then
@@ -1809,7 +1780,6 @@ minetest.register_on_player_receive_fields(
 			return
 		end
 
-
 		local robot_formname = "robot_book_" -- book editing gui
 		if string.find(formname, robot_formname) then
 			local p = string.find(formname, ":")
@@ -1823,8 +1793,7 @@ minetest.register_on_player_receive_fields(
 				local inv = minetest.get_meta(libpos):get_inventory()
 				local itemstack = inv:get_stack("library", sel)
 				if itemstack then
-					local data = itemstack:get_meta():to_table()
-						.fields -- 0.4.16, old minetest.deserialize(itemstack:get_metadata())
+					local data = itemstack:get_meta():to_table().fields
 					if not data then data = {} end
 					local text = fields.book or ""
 					if string.len(text) > 64000 then
@@ -1841,24 +1810,19 @@ minetest.register_on_player_receive_fields(
 					local lpp = 14
 					data.page_max = math.ceil((#text:gsub("[^\n]", "") + 1) / lpp)
 
-					--local data_str = minetest.serialize(data)
 					local new_stack = ItemStack("default:book_written")
 
-					new_stack:get_meta():from_table({ fields = data }) -- 0.4.16
-					--new_stack:set_metadata(data_str)
+					new_stack:get_meta():from_table({ fields = data })
 					inv:set_stack("library", sel, new_stack)
 				end
 			end
 
 			if fields.LOAD then
 				local meta = minetest.get_meta(libpos)
-				--minetest.chat_send_all(libpos.x .. " " .. libpos.y .. " " .. libpos.z)
-				--minetest.chat_send_all(fields.book or "")
 				local inv = minetest.get_meta(libpos):get_inventory()
 				local itemstack = inv:get_stack("library", sel)
 				if itemstack then
-					local data = itemstack:get_meta():to_table()
-						.fields -- 0.4.16, old minetest.deserialize(itemstack:get_metadata()) or {}
+					local data = itemstack:get_meta():to_table().fields
 					meta:set_string("code", data.text or "")
 					robot_spawner_update_form(libpos)
 					minetest.chat_send_player(player:get_player_name(), "#robot: program loaded from book")
@@ -1921,33 +1885,6 @@ minetest.register_node("basic_robot:spawner", {
 		inv:set_size("library", 16) --4*4
 
 		robot_spawner_update_form(pos)
-		--[[
-		local meta = minetest:get_meta(pos)
-		local owner = placer:get_player_name()
-		meta:set_string("owner", owner)
-		
-		local authlevel = get_authlevel(placer:get_player_name())
-		
-		meta:set_int("authlevel",authlevel)
-		local sec_hash = minetest.get_password_hash("",authlevel .. owner .. basic_robot.password) -- 'digitally sign' authlevel using password
-		meta:set_string("sec_hash", sec_hash)
-	
-		meta:set_string("code","")
-		meta:set_int("id",1); -- initial robot id
-		meta:set_string("name", placer:get_player_name().."1")
-		
-		meta:set_string("infotext", "robot spawner (owned by ".. placer:get_player_name() .. ")")
-		
-		--WTF: here it reads correct meta but later there is none!!
-		minetest.chat_send_all("D meta info " .. meta:get_string("infotext"))
-		
-		meta:set_string("libpos",pos.x .. " " .. pos.y .. " " .. pos.z)
-
-		local inv = meta:get_inventory(); -- spawner inventory
-		inv:set_size("main",32)
-		inv:set_size("library",16); --4*4
-		robot_spawner_update_form(pos)
-		--]]
 	end,
 
 	mesecons = {
@@ -1995,9 +1932,7 @@ minetest.register_node("basic_robot:spawner", {
 		if not meta:get_inventory():is_empty("main") or not meta:get_inventory():is_empty("library") then return false end
 		return true
 	end
-
 })
-
 
 local get_manual_control_form = function(name)
 	local form =
@@ -2018,7 +1953,6 @@ local get_manual_control_form = function(name)
 
 	return form
 end
-
 
 -- remote control
 
@@ -2072,7 +2006,6 @@ minetest.register_craftitem("basic_robot:control", {
 			return
 		end
 
-
 		local ids = basic_robot.ids[owner]
 		if not ids then setupid(owner) end
 		local id = basic_robot.ids[owner].id or 1 -- read active id
@@ -2125,7 +2058,6 @@ minetest.register_craftitem("basic_robot:control", {
 	end,
 })
 
-
 minetest.register_entity(
 	"basic_robot:projectile",
 	{
@@ -2142,14 +2074,6 @@ minetest.register_entity(
 		name = "", -- name of originating robot
 		spawnpos = {},
 		state = false,
-
-		--on_activate = function(self, staticdata)
-		--		self.object:remove()
-		--end,
-
-		--get_staticdata = function(self)
-		--	return nil
-		--end,
 
 		on_step = function(self, dtime)
 			local vel = self.object:getvelocity()
@@ -2178,8 +2102,6 @@ minetest.register_entity(
 		end,
 	})
 
-
-
 minetest.register_craft({
 	output = "basic_robot:control",
 	recipe = {
@@ -2196,7 +2118,6 @@ minetest.register_craft({
 		{ "default:stone",        "default:steel_ingot",  "default:stone" }
 	}
 })
-
 
 minetest.register_privilege("robot", "increased number of allowed active robots")
 minetest.register_privilege("puzzle", "allow player to use puzzle. namespace in robots")
