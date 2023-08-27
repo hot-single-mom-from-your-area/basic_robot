@@ -76,9 +76,9 @@ local function pos_in_dir(obj, dir) -- position after we move in specified direc
 	return pos
 end
 
-local check_operations = function(name, amount, quit)
+local check_operations = function(robot_name, amount, quit)
 	if basic_robot.maxoperations ~= 0 then
-		local data = basic_robot.data[name]
+		local data = basic_robot.data[robot_name]
 		local operations = data.operations - amount
 		if operations >= 0 then
 			data.operations = operations
@@ -94,9 +94,9 @@ local check_operations = function(name, amount, quit)
 end
 
 
-basic_robot.commands.move = function(name, dir)
-	check_operations(name, 2, true)
-	local obj = basic_robot.data[name].obj
+basic_robot.commands.move = function(robot_name, dir)
+	check_operations(robot_name, 2, true)
+	local obj = basic_robot.data[robot_name].obj
 	local pos = pos_in_dir(obj, dir)
 
 	-- can move through walkable nodes
@@ -119,8 +119,8 @@ basic_robot.commands.move = function(name, dir)
 	return true
 end
 
-basic_robot.commands.turn = function(name, angle)
-	local obj = basic_robot.data[name].obj
+basic_robot.commands.turn = function(robot_name, angle)
+	local obj = basic_robot.data[robot_name].obj
 	local yaw
 	-- more precise turns by 1 degree resolution
 	local mult = math.pi / 180
@@ -137,11 +137,11 @@ basic_robot.digcosts = { -- 1 energy = 1 coal
 }
 
 
-basic_robot.commands.dig = function(name, dir)
+basic_robot.commands.dig = function(robot_name, dir)
 	local energy = 0
-	check_operations(name, 6, true)
+	check_operations(robot_name, 6, true)
 
-	local obj = basic_robot.data[name].obj
+	local obj = basic_robot.data[robot_name].obj
 	local pos = pos_in_dir(obj, dir)
 
 	local luaent = obj:get_luaentity()
@@ -157,7 +157,7 @@ basic_robot.commands.dig = function(name, dir)
 	if basic_robot.dig_require_energy then
 		local digcost = basic_robot.digcosts[nodename] or 1 / (5 * 25) -- default 1/5th of stone dig
 		if digcost then
-			local data = basic_robot.data[name]
+			local data = basic_robot.data[robot_name]
 			local energy = (data.menergy or 0) - digcost
 			if energy < 0 then
 				error("need " .. digcost .. " energy to dig " .. nodename .. ". Use machine.generate to get some energy.")
@@ -186,15 +186,15 @@ basic_robot.commands.dig = function(name, dir)
 end
 
 
-basic_robot.commands.insert_item = function(name, item, inventory, dir)
-	check_operations(name, 2, true)
-	local obj = basic_robot.data[name].obj
+basic_robot.commands.insert_item = function(robot_name, item, inventory, dir)
+	check_operations(robot_name, 2, true)
+	local obj = basic_robot.data[robot_name].obj
 	local tpos = pos_in_dir(obj, dir) -- position of target block
 	local luaent = obj:get_luaentity()
 	if minetest.is_protected(tpos, luaent.owner) then return false end
 
 
-	local pos = basic_robot.data[name].spawnpos -- position of spawner block
+	local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 
 	local meta = minetest.get_meta(pos)
 	local tmeta = minetest.get_meta(tpos)
@@ -216,15 +216,15 @@ basic_robot.commands.insert_item = function(name, item, inventory, dir)
 	return true
 end
 
-basic_robot.commands.take_item = function(name, item, inventory, dir)
-	check_operations(name, 2, true)
-	local obj = basic_robot.data[name].obj
+basic_robot.commands.take_item = function(robot_name, item, inventory, dir)
+	check_operations(robot_name, 2, true)
+	local obj = basic_robot.data[robot_name].obj
 	local tpos = pos_in_dir(obj, dir) -- position of target block
 	local luaent = obj:get_luaentity()
 	if minetest.is_protected(tpos, luaent.owner) then return false end
 
 
-	local pos = basic_robot.data[name].spawnpos                                          -- position of spawner block
+	local pos = basic_robot.data[robot_name].spawnpos                                    -- position of spawner block
 
 	if basic_robot.bad_inventory_blocks[minetest.get_node(tpos).name] then return false end -- dont allow take from
 
@@ -250,8 +250,8 @@ end
 
 -- check_inventory(item, inventory, position)
 --if position>0 then it returns name of item at that position
-basic_robot.commands.check_inventory = function(name, itemname, inventory, position, dir)
-	local obj = basic_robot.data[name].obj
+basic_robot.commands.check_inventory = function(robot_name, itemname, inventory, position, dir)
+	local obj = basic_robot.data[robot_name].obj
 	local tpos
 	if dir ~= 0 then
 		tpos = pos_in_dir(obj, dir) -- position of target block in front
@@ -285,12 +285,12 @@ basic_robot.no_teleport_table = {
 }
 
 
-basic_robot.commands.pickup = function(r, name)
+basic_robot.commands.pickup = function(r, robot_name)
 	if r > 8 then return false end
 
-	check_operations(name, 4, true)
-	local pos = basic_robot.data[name].obj:get_pos()
-	local spos = basic_robot.data[name].spawnpos -- position of spawner block
+	check_operations(robot_name, 4, true)
+	local pos = basic_robot.data[robot_name].obj:get_pos()
+	local spos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 	local meta = minetest.get_meta(spos)
 	local inv = minetest.get_meta(spos):get_inventory()
 	local picklist = {}
@@ -316,15 +316,15 @@ basic_robot.commands.pickup = function(r, name)
 end
 
 
-basic_robot.commands.read_node = function(name, dir)
-	local obj = basic_robot.data[name].obj
+basic_robot.commands.read_node = function(robot_name, dir)
+	local obj = basic_robot.data[robot_name].obj
 	local pos = pos_in_dir(obj, dir)
 	return minetest.get_node(pos).name or ""
 end
 
-basic_robot.commands.read_text = function(name, mode, dir, stringname)
+basic_robot.commands.read_text = function(robot_name, mode, dir, stringname)
 	if not mode then mode = 0 end
-	local obj = basic_robot.data[name].obj
+	local obj = basic_robot.data[robot_name].obj
 	local pos = pos_in_dir(obj, dir)
 
 	if stringname == nil then
@@ -338,8 +338,8 @@ basic_robot.commands.read_text = function(name, mode, dir, stringname)
 	end
 end
 
-basic_robot.commands.write_text = function(name, dir, text)
-	local obj = basic_robot.data[name].obj
+basic_robot.commands.write_text = function(robot_name, dir, text)
+	local obj = basic_robot.data[robot_name].obj
 	local pos = pos_in_dir(obj, dir)
 	local luaent = obj:get_luaentity()
 	if minetest.is_protected(pos, luaent.owner) then return false end
@@ -347,9 +347,9 @@ basic_robot.commands.write_text = function(name, dir, text)
 	return true
 end
 
-basic_robot.commands.place = function(name, nodename, param2, dir)
-	check_operations(name, 2, true)
-	local obj = basic_robot.data[name].obj
+basic_robot.commands.place = function(robot_name, nodename, param2, dir)
+	check_operations(robot_name, 2, true)
+	local obj = basic_robot.data[robot_name].obj
 	local pos = pos_in_dir(obj, dir)
 	local luaent = obj:get_luaentity()
 	if minetest.is_protected(pos, luaent.owner) then return false end
@@ -389,16 +389,16 @@ basic_robot.commands.place = function(name, nodename, param2, dir)
 	return true
 end
 
-basic_robot.commands.attack = function(name, target) -- attack range 4, damage 5
+basic_robot.commands.attack = function(robot_name, target) -- attack range 4, damage 5
 	local energy = 0
-	check_operations(name, 4, true)
+	check_operations(robot_name, 4, true)
 
 	local reach = 4
 	local damage = 5
 
 	local tplayer = minetest.get_player_by_name(target)
 	if not tplayer then return false end
-	local obj = basic_robot.data[name].obj
+	local obj = basic_robot.data[robot_name].obj
 	local pos = obj:get_pos()
 	local tpos = tplayer:get_pos()
 
@@ -409,12 +409,12 @@ basic_robot.commands.attack = function(name, target) -- attack range 4, damage 5
 	return true
 end
 
-basic_robot.commands.grab = function(name, target)
+basic_robot.commands.grab = function(robot_name, target)
 	local reach = 4
 
 	local tplayer = minetest.get_player_by_name(target)
 	if not tplayer then return false end
-	local obj = basic_robot.data[name].obj
+	local obj = basic_robot.data[robot_name].obj
 	local pos = obj:get_pos()
 	local tpos = tplayer:get_pos()
 
@@ -451,7 +451,7 @@ basic_robot.commands.read_book = function(itemstack) -- itemstack should contain
 	end
 end
 
-basic_robot.commands.write_book = function(name, title, text) -- returns itemstack containing book
+basic_robot.commands.write_book = function(player_name, title, text) -- returns itemstack containing book
 	local lpp = 14
 	local new_stack = ItemStack("default:book_written")
 	local data = {}
@@ -464,7 +464,8 @@ basic_robot.commands.write_book = function(name, title, text) -- returns itemsta
 	data.page = 1
 	data.description = title or ""
 	data.page_max = math.ceil((#data.text:gsub("[^\n]", "") + 1) / lpp)
-	data.owner = name
+	--data.owner = basic_robot.data[robot_name].owner --doesn't work for some reason
+	data.owner = player_name
 	--local data_str = minetest.serialize(data) -- pre 0.4.16
 	--new_stack:set_metadata(data_str)
 	new_stack:get_meta():from_table({ fields = data }) -- 0.4.16
@@ -560,9 +561,9 @@ end
 
 local robot_activate_furnace = minetest.registered_nodes["default:furnace"]
 	.on_metadata_inventory_put -- this function will activate furnace
-basic_robot.commands.activate = function(name, mode, dir)
-	check_operations(name, 2, true)
-	local obj = basic_robot.data[name].obj
+basic_robot.commands.activate = function(robot_name, mode, dir)
+	check_operations(robot_name, 2, true)
+	local obj = basic_robot.data[robot_name].obj
 	local tpos = pos_in_dir(obj, dir) -- position of target block in front
 
 	local node = minetest.get_node(tpos)
@@ -617,8 +618,8 @@ end
 basic_robot.commands.write_keyevent = write_keyevent
 
 local button_punched = function(pos, node, player, type)
-	local name = player:get_player_name()
-	if name == nil then return end
+	local player_name = player:get_player_name()
+	if player_name == nil then return end
 	local round = math.floor
 	local r = basic_robot.radius
 	local ry = 2 * r
@@ -765,8 +766,8 @@ local dout = minetest.chat_send_all
 
 basic_robot.commands.keyboard = {
 
-	get = function(name) -- read keyboard event
-		local data = basic_robot.data[name]
+	get = function(robot_name) -- read keyboard event
+		local data = basic_robot.data[robot_name]
 		if data.keyevent then
 			local keyevent = data.keyevent
 			local oidx = keyevent[3]
@@ -809,15 +810,15 @@ basic_robot.commands.keyboard = {
 
 basic_robot.commands.craftcache = {}
 
-basic_robot.commands.craft = function(item, mode, idx, amount, name)
+basic_robot.commands.craft = function(item, mode, idx, amount, robot_name)
 	if not item then return false end
 	amount = amount and math.floor(tonumber(amount)) or 1
 	amount = math.max(amount, 1)
 
-	local cache = basic_robot.commands.craftcache[name]
+	local cache = basic_robot.commands.craftcache[robot_name]
 	if not cache then
-		basic_robot.commands.craftcache[name] = {}
-		cache = basic_robot.commands.craftcache[name]
+		basic_robot.commands.craftcache[robot_name] = {}
+		cache = basic_robot.commands.craftcache[robot_name]
 	end
 	local itemlist = {}
 	local output = ""
@@ -846,7 +847,7 @@ basic_robot.commands.craft = function(item, mode, idx, amount, name)
 		-- loop through robot inventory for those "group" items and see if anything in inventory matches group - then replace
 		-- group name with that item
 
-		local pos = basic_robot.data[name].spawnpos -- position of spawner block
+		local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 		local inv = minetest.get_meta(pos):get_inventory()
 
 		for item, v in pairs(itemlist) do
@@ -876,7 +877,7 @@ basic_robot.commands.craft = function(item, mode, idx, amount, name)
 	-- check if all items from itemlist..
 	-- craft item
 
-	local pos = basic_robot.data[name].spawnpos -- position of spawner block
+	local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 	local inv = minetest.get_meta(pos):get_inventory()
 
 	for item, quantity in pairs(itemlist) do
@@ -920,10 +921,10 @@ basic_robot.commands.find_path = function(robot_name, pos2)
 	if path then return #path else return nil end -- return length of found path or nil
 end
 
-basic_robot.commands.walk_path = function(name)
-	check_operations(name, 2, true)
+basic_robot.commands.walk_path = function(robot_name)
+	check_operations(robot_name, 2, true)
 
-	local pathdata = basic_robot.data[name].pathdata
+	local pathdata = basic_robot.data[robot_name].pathdata
 	if not pathdata then return nil end
 	local path = pathdata[2]
 	if not path then return 0 end
@@ -932,7 +933,7 @@ basic_robot.commands.walk_path = function(name)
 	if idx > #path then return 0 end -- reached end of path
 
 	local pos2 = path[idx]
-	local obj = basic_robot.data[name].obj
+	local obj = basic_robot.data[robot_name].obj
 	local pos1 = obj:get_pos()
 
 	local ndist = (pos1.x - pos2.x) ^ 2 + (pos1.y - pos2.y) ^ 2 + (pos1.z - pos2.z) ^ 2
@@ -969,17 +970,17 @@ basic_robot.commands.walk_path = function(name)
 end
 
 --FORMS
-basic_robot.commands.show_form = function(name, playername, form)
-	minetest.show_formspec(playername, "robot_form" .. name, form)
+basic_robot.commands.show_form = function(robot_name, player_name, form)
+	minetest.show_formspec(player_name, "robot_form" .. robot_name, form)
 end
 
 -- handle robots receiving fields
 minetest.register_on_player_receive_fields(function(player, formname, fields)
 	if not string.sub(formname, 1, 10) == "robot_form" then return end
-	local name = string.sub(formname, 11) -- robot name
-	if not basic_robot.data[name] then return end
-	basic_robot.data[name].read_form = fields
-	basic_robot.data[name].form_sender = player:get_player_name() or ""
+	local robot_name = string.sub(formname, 11) -- robot name
+	if not basic_robot.data[robot_name] then return end
+	basic_robot.data[robot_name].read_form = fields
+	basic_robot.data[robot_name].form_sender = player:get_player_name() or ""
 end)
 
 
@@ -1037,11 +1038,11 @@ end
 basic_robot.commands.machine = {
 
 	-- convert fuel into energy
-	generate_power = function(name, input, amount) -- fuel used, if no fuel then amount specifies how much energy builtin generator should produce
-		check_operations(name, 6, true)
+	generate_power = function(robot_name, input, amount) -- fuel used, if no fuel then amount specifies how much energy builtin generator should produce
+		check_operations(robot_name, 6, true)
 
 		if amount and amount > 0 and amount < 10 ^ 6 then -- attempt to generate power from builtin generator
-			local pos = basic_robot.data[name].spawnpos -- position of spawner block
+			local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 			local inv = minetest.get_meta(pos):get_inventory()
 			local level = amount *
 				40 -- to generate 1 unit ( coal lump per second ) we need at least upgrade 40
@@ -1050,7 +1051,7 @@ basic_robot.commands.machine = {
 					amount .. " energy requires upgrade level at least " .. level .. " (blocks of mese, diamond, gold )")
 				return
 			end
-			local data = basic_robot.data[name]
+			local data = basic_robot.data[robot_name]
 			local energy = (data.menergy or 0) + amount
 			data.menergy = energy
 			return energy
@@ -1061,7 +1062,7 @@ basic_robot.commands.machine = {
 
 		if string.find(input, " ") then return nil, "1: can convert only one item at once" end
 
-		local pos = basic_robot.data[name].spawnpos -- position of spawner block
+		local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 		local inv = minetest.get_meta(pos):get_inventory()
 		local stack = ItemStack(input)
 		if not inv:contains_item("main", stack) then return nil, "2: no input material" end
@@ -1081,7 +1082,7 @@ basic_robot.commands.machine = {
 		inv:remove_item("main", stack)
 
 		--add energy
-		local data = basic_robot.data[name]
+		local data = basic_robot.data[robot_name]
 		energy = data.menergy or 0
 		energy = energy + add_energy
 		data.menergy = energy
@@ -1089,13 +1090,13 @@ basic_robot.commands.machine = {
 	end,
 
 	-- smelting
-	smelt = function(name, input, amount) -- input material, amount of energy used for smelt
+	smelt = function(robot_name, input, amount) -- input material, amount of energy used for smelt
 		local energy = 0               -- can only do one step at a run time
-		check_operations(name, 6, true)
+		check_operations(robot_name, 6, true)
 
 		if string.find(input, " ") then return nil, "0: only one item per smelt" end
 
-		local pos = basic_robot.data[name].spawnpos -- position of spawner block
+		local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 		local meta = minetest.get_meta(pos)
 		local inv = minetest.get_meta(pos):get_inventory()
 
@@ -1113,7 +1114,7 @@ basic_robot.commands.machine = {
 			smelttimeboost = smelttimeboost + amount -- double speed with amount 1
 		end
 
-		local data = basic_robot.data[name]
+		local data = basic_robot.data[robot_name]
 		energy = data.menergy or 0 -- machine energy
 		if energy < cost then return nil, "1: not enough energy" end
 
@@ -1153,15 +1154,15 @@ basic_robot.commands.machine = {
 	end,
 
 	-- grind
-	grind = function(name, input)
+	grind = function(robot_name, input)
 		--[in] ={fuel cost, out, quantity of material required for processing}
-		check_operations(name, 6, true)
+		check_operations(robot_name, 6, true)
 		local recipe = basic_robot.technic.grinder_recipes[input]
 		if not recipe then return nil, "unknown recipe" end
 		local cost = recipe[1]
 		local output = recipe[2]
 
-		local pos = basic_robot.data[name].spawnpos -- position of spawner block
+		local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 		local meta = minetest.get_meta(pos)
 		local inv = minetest.get_meta(pos):get_inventory()
 
@@ -1176,7 +1177,7 @@ basic_robot.commands.machine = {
 		local stack = ItemStack(input)
 		if not inv:contains_item("main", stack) then return nil, "1: missing input material" end
 
-		local data = basic_robot.data[name]
+		local data = basic_robot.data[robot_name]
 		local energy = data.menergy or 0
 		if energy < cost then return nil, "2: low energy " .. energy .. "/" .. cost end
 		data.menergy = energy - cost
@@ -1188,15 +1189,15 @@ basic_robot.commands.machine = {
 
 
 	-- compress
-	compress = function(name, input)
+	compress = function(robot_name, input)
 		--[in] ={fuel cost, out, quantity of material required for processing}
-		check_operations(name, 6, true)
+		check_operations(robot_name, 6, true)
 		local recipe = basic_robot.technic.compressor_recipes[input]
 		if not recipe then return nil, "unknown recipe" end
 		local cost = recipe[1]
 		local output = recipe[2]
 
-		local pos = basic_robot.data[name].spawnpos -- position of spawner block
+		local pos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 		local meta = minetest.get_meta(pos)
 		local inv = minetest.get_meta(pos):get_inventory()
 
@@ -1210,7 +1211,7 @@ basic_robot.commands.machine = {
 		local stack = ItemStack(input)
 		if not inv:contains_item("main", stack) then return nil, "1: missing input material" end
 
-		local data = basic_robot.data[name]
+		local data = basic_robot.data[robot_name]
 		local energy = data.menergy or 0
 		if energy < cost then return nil, "2: low energy " .. energy .. "/" .. cost end
 		data.menergy = energy - cost
@@ -1220,10 +1221,10 @@ basic_robot.commands.machine = {
 		return true
 	end,
 
-	transfer_power = function(name, amount, target)
-		check_operations(name, 2, true)
-		local pos = basic_robot.data[name].spawnpos
-		local data = basic_robot.data[name]
+	transfer_power = function(robot_name, amount, target)
+		check_operations(robot_name, 2, true)
+		local pos = basic_robot.data[robot_name].spawnpos
+		local data = basic_robot.data[robot_name]
 		local tdata = basic_robot.data[target]
 		if not tdata then return nil, "target inactive" end
 
@@ -1238,9 +1239,9 @@ basic_robot.commands.machine = {
 		return true
 	end,
 
-	place_seed = function(name, dir, seedbookname) -- use basic_farming seedbook to place seed
+	place_seed = function(robot_name, dir, seedbookname) -- use basic_farming seedbook to place seed
 		if not basic_farming then return end
-		local obj = basic_robot.data[name].obj
+		local obj = basic_robot.data[robot_name].obj
 		local pos = pos_in_dir(obj, dir)
 
 		local spos = obj:get_luaentity().spawnpos
@@ -1259,9 +1260,9 @@ basic_robot.commands.machine = {
 		inv:set_stack("main", idx, itemstack) -- refresh stack in inventory
 	end,
 
-	dig_seed = function(name, dir)
+	dig_seed = function(robot_name, dir)
 		if not basic_farming then return end
-		local obj = basic_robot.data[name].obj
+		local obj = basic_robot.data[robot_name].obj
 		local pos = pos_in_dir(obj, dir)
 
 		local nodename = minetest.get_node(pos).name
@@ -1269,7 +1270,7 @@ basic_robot.commands.machine = {
 		basename, stage = string.match(nodename, "%w+:(%w+)_(%d+)") -- modname:basename_stage
 		if not basename then return end
 
-		local spos = basic_robot.data[name].spawnpos -- position of spawner block
+		local spos = basic_robot.data[robot_name].spawnpos -- position of spawner block
 		local inv = minetest.get_meta(spos):get_inventory()
 
 		local itemstack = ItemStack("basic_farming:seedbook_" .. basename)
@@ -1439,8 +1440,8 @@ local cmd_get_node_inv = function(data, pos)
 	return minetest.get_meta(pos):get_inventory()
 end
 
-local cmd_get_player = function(data, pname) -- return player for further manipulation
-	local player = minetest.get_player_by_name(pname)
+local cmd_get_player = function(data, player_name) -- return player for further manipulation
+	local player = minetest.get_player_by_name(player_name)
 	if not player then
 		error("player does not exist")
 		return
@@ -1454,8 +1455,8 @@ local cmd_get_player = function(data, pname) -- return player for further manipu
 	return player
 end
 
-local cmd_get_player_inv = function(data, pname)
-	local player = minetest.get_player_by_name(pname)
+local cmd_get_player_inv = function(data, player_name)
+	local player = minetest.get_player_by_name(player_name)
 	if not player then return end
 	local spos = data.spawnpos
 	local ppos = player:get_pos()
@@ -1525,7 +1526,7 @@ local cmd_set_triggers = function(pdata, triggers)
 	end
 end
 
-local cmd_checkpos = function(data, pos, pname) -- does the position pos trigger any triggers?
+local cmd_checkpos = function(data, pos, player_name) -- does the position pos trigger any triggers?
 	cmd_get_pos_id(data, pos)                   -- we dont init new table structure every time but store ids in block_ids
 
 	local block_ids = data.block_ids
@@ -1545,7 +1546,7 @@ local cmd_checkpos = function(data, pos, pname) -- does the position pos trigger
 				if trigger.onetime and gdata[id] then -- trigger already "triggered"
 				else
 					--say("trigger " .. id)
-					trigger.action(pname, id)
+					trigger.action(player_name, id)
 				end
 			end
 		end
@@ -1610,22 +1611,22 @@ basic_robot.commands.puzzle = {
 
 
 local Vplayer = {}
-function Vplayer:new(name)                            -- constructor
-	if not basic_robot.data[name].obj then return end -- only make it for existing robot
-	if basic_robot.virtual_players[name] then return end -- already exists
+function Vplayer:new(robot_name)                            -- constructor
+	if not basic_robot.data[robot_name].obj then return end -- only make it for existing robot
+	if basic_robot.virtual_players[robot_name] then return end -- already exists
 
 	local o = {}
 	setmetatable(o, self)
 	self.__index = self
-	o.obj = basic_robot.data[name].obj
-	o.data = basic_robot.data[name]
+	o.obj = basic_robot.data[robot_name].obj
+	o.data = basic_robot.data[robot_name]
 
 	local spawnpos = o.data.spawnpos
 	local meta = minetest.get_meta(spawnpos)
 	if not meta then return end
 	o.inv = meta:get_inventory()
 
-	basic_robot.virtual_players[name] = o
+	basic_robot.virtual_players[robot_name] = o
 end
 
 -- functions
