@@ -516,11 +516,11 @@ basic_robot.commands.display_text = function(obj, text, linesize, size)
 
 	if string.len(tex) <= 1600 then
 		obj:set_properties({
-			textures = { "topface.png", "legs.png", tex, "face-back.png", "left-hand.png", "right-hand.png" },
+			textures = { "topface.png", "legs.png", "left-hand.png", "right-hand.png", tex, "face-back.png" },
 			visual_size = { x = size, y = size }
 		})
 	else
-		self.label("error: string too long")
+		error("display_text error: string too long")
 	end
 end
 
