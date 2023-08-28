@@ -107,6 +107,7 @@ function getSandboxEnv(robot_name)
 				local pos = basic_robot.data[robot_name].spawnpos
 				return { x = pos.x, y = pos.y, z = pos.z }
 			end,
+			owner = function() return basic_robot.data[robot_name].owner end,
 			name = function() return robot_name end,
 			operations = function() return basic_robot.data[robot_name].operations end,
 			viewdir = function()
