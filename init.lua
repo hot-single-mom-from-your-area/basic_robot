@@ -17,12 +17,12 @@ robot object = object of entity, used to manipulate movements and more
 basic_robot.ids = {} -- stores maxid for each player
 --[player_name] = {id = .., maxid = .. }, current id for robot controller, how many robot ids player can use
 
-basic_robot.virtual_players = {}                              -- this way robot can interact with the world as "player" TODO
+basic_robot.virtual_players = {} -- this way robot can interact with the world as "player" TODO
 
-basic_robot.data.listening = {}                               -- which robots listen to chat
-basic_robot.data.punchareas = {}                              -- where robots listen punch events, [hashes of 32 sized chunk] = robot name
+basic_robot.listening = {}       -- which robots listen to chat
+basic_robot.punchareas = {}      -- where robots listen punch events, [hashes of 32 sized chunk] = robot name
 
-dofile(minetest.get_modpath("basic_robot") .. "/robogui.lua") -- gui stuff
+dofile(minetest.get_modpath("basic_robot") .. "/robogui.lua")
 dofile(minetest.get_modpath("basic_robot") .. "/commands.lua")
 
 local check_code, preprocess_code, is_inside_string
@@ -128,9 +128,9 @@ function getSandboxEnv(robot_name)
 
 			listen = function(mode) -- will robot listen to chat?
 				if mode == 1 then
-					basic_robot.data.listening[robot_name] = true
+					basic_robot.listening[robot_name] = true
 				else
-					basic_robot.data.listening[robot_name] = nil
+					basic_robot.listening[robot_name] = nil
 				end
 			end,
 
@@ -145,16 +145,16 @@ function getSandboxEnv(robot_name)
 					z = round(pos.z / r + 0.5) * r
 				} -- just on top of basic_protect:protector!
 				local hppos = minetest.hash_node_position(ppos)
-				local rname = basic_robot.data.punchareas[hppos]
+				local rname = basic_robot.punchareas[hppos]
 				if is_remove then -- remove listener
-					basic_robot.data.punchareas[hppos] = nil
+					basic_robot.punchareas[hppos] = nil
 					return
 				end
 
 				if rname then -- area already registered for listening
 					return rname
 				end
-				basic_robot.data.punchareas[hppos] = robot_name -- register robot name
+				basic_robot.punchareas[hppos] = robot_name -- register robot name
 			end,
 
 			listen_msg = function()
@@ -1026,7 +1026,7 @@ local function init_robot(obj, resetSandbox)
 	local robot_name = self.name
 	basic_robot.data[robot_name].obj = obj       --register object
 	--init settings
-	basic_robot.data.listening[robot_name] = nil -- dont listen at beginning
+	basic_robot.listening[robot_name] = nil -- dont listen at beginning
 	basic_robot.data[robot_name].quiet_mode = false -- can chat globally
 
 	-- check if admin robot
@@ -1842,7 +1842,7 @@ minetest.register_on_chat_message(
 			hidden = true
 			message = string.sub(message, 2)
 		end
-		local listeners = basic_robot.data.listening -- which robots are listening?
+		local listeners = basic_robot.listening -- which robots are listening?
 		for robot_name, _ in pairs(listeners) do
 			local data = basic_robot.data[robot_name]
 			data.listen_msg = message
@@ -1999,7 +1999,7 @@ minetest.register_craftitem("basic_robot:control", {
 			} -- just on top of basic_protect:protector!
 
 			local hppos = minetest.hash_node_position(ppos)
-			local rname = basic_robot.data.punchareas[hppos]
+			local rname = basic_robot.punchareas[hppos]
 			local data = basic_robot.data[rname]
 			if data then
 				write_keyevent(data, pos, owner, 0)

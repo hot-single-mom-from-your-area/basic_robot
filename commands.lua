@@ -591,7 +591,7 @@ local button_punched = function(pos, node, player, type)
 	local ppos = { x = round(pos.x / r + 0.5) * r, y = round(pos.y / ry + 0.5) * ry + 1, z = round(pos.z / r + 0.5) * r } -- just on top of basic_protect:protector!
 
 	local hppos = minetest.hash_node_position(ppos)
-	local rname = basic_robot.data.punchareas[hppos]
+	local rname = basic_robot.punchareas[hppos]
 	local data = basic_robot.data[rname]
 	if data then
 		write_keyevent(data, pos, player:get_player_name(), type)
