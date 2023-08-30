@@ -1164,6 +1164,7 @@ minetest.register_entity("basic_robot:robot", {
 })
 
 local spawn_robot = function(pos, node, ttl)
+	pos = { x = math.floor(pos.x + 0.5), y = math.floor(pos.y + 0.5), z = math.floor(pos.z + 0.5) }
 	if type(ttl) ~= "number" then ttl = 0 end
 	if ttl < 0 then return end
 
