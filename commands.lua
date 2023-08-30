@@ -332,25 +332,25 @@ basic_robot.commands.place = function(robot_name, nodename, param2, dir)
 	local obj = basic_robot.data[robot_name].obj
 	local pos = pos_in_dir(obj, dir)
 	local luaent = obj:get_luaentity()
-	if minetest.is_protected(pos, luaent.owner) then return false end
-	if minetest.get_node(pos).name ~= "air" then return false end
+	if minetest.is_protected(pos, luaent.owner) then return nil, "place 0: target area is protected" end
+	if minetest.get_node(pos).name ~= "air" then return nil, "place 1: target node is not empty" end
+	local registered_node = minetest.registered_nodes[nodename]
+	if not registered_node then return nil, "place 3: " .. nodename .. " can not be placed" end
 
-	local spos = obj:get_luaentity().spawnpos
-	local meta = minetest.get_meta(spos)
+	local spawner_pos = obj:get_luaentity().spawnpos
+	local meta = minetest.get_meta(spawner_pos)
 	local inv = meta:get_inventory()
 	if not inv then return false end
-	if not inv:contains_item("main", ItemStack(nodename)) and meta:get_int("admin") ~= 1 then return false end
+	if not inv:contains_item("main", ItemStack(nodename)) and meta:get_int("admin") ~= 1 then
+		return nil, "place 2: " .. input .. " not found"
+	end
 	inv:remove_item("main", ItemStack(nodename))
 
-	--DS
-	local registered_node = minetest.registered_nodes[nodename]
-	if registered_node then
-		local sounds = registered_node.sounds
-		if sounds then
-			local sound = sounds.place
-			if sound then
-				minetest.sound_play(sound, { pos = pos, max_hear_distance = 10 })
-			end
+	local sounds = registered_node.sounds
+	if sounds then
+		local sound = sounds.place
+		if sound then
+			minetest.sound_play(sound, { pos = pos, max_hear_distance = 10 })
 		end
 	end
 
@@ -359,11 +359,12 @@ basic_robot.commands.place = function(robot_name, nodename, param2, dir)
 		minetest.set_node(pos, { name = placename })
 		tick(pos) -- needed for seeds to grow
 	else    -- normal place
-		if param2 then
-			minetest.set_node(pos, { name = nodename, param2 = param2 })
-		else
-			minetest.set_node(pos, { name = nodename })
-		end
+		minetest.item_place_node(
+			ItemStack(nodename),
+			minetest.get_player_by_name(basic_robot.data[robot_name].owner),
+			{type = "node", above = basic_robot.data[robot_name].obj:get_pos(), under = pos_in_dir(obj, dir)},
+			param2
+		)
 	end
 
 	return true
